@@ -2,7 +2,11 @@ body {
   padding: 50px;
   font: 14px "Lucida Grande", Helvetica, Arial, sans-serif;
 }
-
 a {
-  color: #00B7FF;
+  color: #00b7ff;
+}
+#loginButton > img {
+  height: 24px;
+  width: 24px;
+  margin-left: 6px;
 }

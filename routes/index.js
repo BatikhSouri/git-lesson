@@ -18,15 +18,15 @@ githubApp.authenticate({
 });
 
 var accessTokenPath = '/login/oauth/access_token?client_id=' + config.github.clientId + '&client_secret=' + config.github.clientSecret
+var requiredScopes = arrayUnique(config.github.requiredScopes.split(/,/g));
 
 /* GET home page. */
 exports.index = function(req, res){
-
-    res.render('index');
+    res.render('index', {title: "git-lesson"});
 };
 
 exports.login = function(req, res){
-    res.redirect('https://github.com/login/oauth/authorize?client_id=' + config.github.clientId + '&scope=user:email,public_repo');
+    res.redirect('https://github.com/login/oauth/authorize?client_id=' + config.github.clientId + '&scope=' + config.github.askedScopes);
 };
 
 exports.loginCallback = function(req, res){
@@ -54,7 +54,12 @@ exports.loginCallback = function(req, res){
                 console.error('Error while parsing github\'s access_token response:\n' + ghResBody + '\nError: ' + e);
                 return;
             }
-
+            if (!(parsedGhRes.token && parsedGhRes.scope)){
+                res.send(500, 'Internal error');
+                console.error('Error while parsing github\'s access_token response:\nmissing token and/or scope properties:\nReceived response:\n' + JSON.stringify(parsedGhRes));
+                return;
+            }
+            var receivedScopes = parsedGhRes.scope.split(/,/g);
         });
     });
     tokenReq.on('error')
@@ -62,20 +67,38 @@ exports.loginCallback = function(req, res){
 };
 
 exports.logout = function(req, res){
-
+    console.log('req.session: ' + JSON.stringify(req.session));
+    Session.remove({})
+    req.session = null
+    res.redirect('/');
 };
-accessTokenPathaccess_token
-exports.showLesson = function(req, res){
 
+exports.showLesson = function(req, res){
+    var lessonId = req.param('id');
+    Lesson.find({id: lessonId}, function(err, requestedLesson){
+        if (err){
+            res.send(500, 'Internal error');
+            console.error('Error while rendering lesson page for lessonId ' + lessonId + ':\n' + err);
+            return;
+        }
+        if (requestedLesson && requestedLesson._doc){
+            res.render('lesson', requestedLesson);
+        } else {
+            res.render('error', {title: 'Lesson not found', message: 'The lesson you requested cannot be found'}, function(err, html){
+                if (err) res.send(404, 'The lesson you requested cannot be found');
+                else res.send(404, html);
+            });
+        }
+    });
 };
 
 exports.hook = function(req, res){
-
+    //if (!(req.body.repository))
 };
 
 function ghClientForToken(t){
     var c = new githubApi({version: '3.0.0'});
-    c.authenticate({'oauth', token: t});
+    c.authenticate({type: 'oauth', token: t});
     return c;
 }
 
@@ -87,4 +110,65 @@ function getUserProfile(t, callback){
 function getUserEmails(t, callback){
     var client = (typeof t == 'string' ? ghClientForToken(t) : t);
     client.getEmails(callback);
+}
+
+function parseLesson(commitMessage){
+    if (typeof commitMessage != 'string') return null;
+    var commitMessageLines = commitMessage.split(/\r\n|\n|\r/gm);
+    var lessonTagIndex = -1;
+    for (var i = 0; i < commitMessageLines.length; i++){
+        if (commitMessageLines[i].indexOf('[lesson]') == 0){
+            lessonTagIndex = i;
+            break;
+        }
+    }
+    if (lessonTagIndex == -1 || lessonTagIndex == commitMessageLines.length - 1) return null;
+    var tagsLine;
+    var tagsArray = [];
+    var lessonText = '';
+    for (var i = lessonTagIndex + 1; i < commitMessageLines.length; i++){
+        if (i == 0 && commitMessageLines[i].indexOf('tags=') == 0){
+            tagsLine = commitMessageLines[i];
+            tagsArray = tagsLine.split(/(,| |\+)+/g);
+        } else {
+            lessonText += commitMessageLines[i] + '\r\n';
+        }
+    }
+    return {lesson: lessonText, tags: tagsArray};
+}
+
+function checkRequiredScopeIntegrity(scopeParam){
+    var providedScopeArray = (Array.isArray(scopeParam) ? scopeParam : scopeParam.split(/,/g));
+    providedScopeArray = arrayUnique(providedScopeArray);
+    for (var i = 0; i < requiredScopes.length; i++){
+        if (!binarySearch(providedScopeArray, requiredScopes[i])) return false;
+    }
+    return true;
+}
+
+function arrayUnique(a){
+    //I've found this ingenious idea here; 2n worst case time complexity:
+    //http://www.shamasis.net/2009/09/fast-algorithm-to-find-unique-items-in-javascript-array/
+    var h = {}, l = a.length; r = [];
+    for (var i = 0; i < l; i++) h[a[i]] = a[i];
+    for (e in h) r.push(h[e]);
+    return r.sort();
+}
+
+function binarySearch(array, item, start, end){
+    if (!isSorted(array)) array = array.sort();
+    start = start || 0;
+    end = end || array.length - 1;
+    if (end < start) return false;
+    var middleElementIndex = start + Math.floor((end-start) / 2);
+    if (array[middleElementIndex] < item) return binarySearch(array, item, middleElementIndex + 1, end);
+    else if (array[middleElementIndex] > item) return binarySearch(array, item, start, middleElementIndex - 1);
+    else return true;
+}
+
+function isSorted(a){
+    for (var i = 1; i < a.length; i++){
+        if (!(a[i] < a[i-1])) return false;
+    }
+    return true;
 }

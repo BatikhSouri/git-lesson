@@ -1,5 +1,13 @@
 extends layout
 
 block content
-  h1= title
-  p Welcome to #{title}
+    .jumbotron
+        .container
+            h1 #{title}_
+            p Share coding tips and lessons right from your commits!
+            a(href="/login")
+                button#loginButton.btn.btn-medium.btn-primary
+                    span Log in with GitHub
+                    img(src="/images/GitHub-Mark-Light-32px.png")
+    h1 Latest tips
+    script.
