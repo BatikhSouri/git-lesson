@@ -50,6 +50,12 @@ exports.login = function(req, res){
                 console.error('Error while parsing github\'s access_token response:\n' + ghResBody + '\nError: ' + e);
                 return;
             }
+            if (parsedGhRes.error){
+                res.redirect('/');
+                console.error('Auth error:\n' + JSON.stringify(parsedGhRes));
+                return;
+            }
+            console.log(parsedGhRes.access_token && parsedGhRes.scope);
             if (!(parsedGhRes.access_token && parsedGhRes.scope)){
                 res.send(500, 'Internal error');
                 console.error('Error while parsing github\'s access_token response:\nmissing token and/or scope properties:\nReceived response:\n' + JSON.stringify(parsedGhRes));
