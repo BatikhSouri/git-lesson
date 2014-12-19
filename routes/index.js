@@ -50,7 +50,7 @@ exports.login = function(req, res){
                 console.error('Error while parsing github\'s access_token response:\n' + ghResBody + '\nError: ' + e);
                 return;
             }
-            if (!(parsedGhRes.token && parsedGhRes.scope)){
+            if (!(parsedGhRes.access_token && parsedGhRes.scope)){
                 res.send(500, 'Internal error');
                 console.error('Error while parsing github\'s access_token response:\nmissing token and/or scope properties:\nReceived response:\n' + JSON.stringify(parsedGhRes));
                 return;
@@ -61,7 +61,7 @@ exports.login = function(req, res){
                 res.render('error', {title: 'Login error', message: 'Missing github authorizations: ' + missingScopes.join(', ')});
                 return;
             }
-            var ghUserClient = ghClientForToken(parsedGhRes.token);
+            var ghUserClient = ghClientForToken(parsedGhRes.access_token);
             getUserProfile(ghUserClient, function(err, data){
                 if (err) console.error('err: ' + JSON.stringify(err));
                 else {
