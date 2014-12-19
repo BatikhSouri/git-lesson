@@ -26,12 +26,8 @@ exports.index = function(req, res){
 };
 
 exports.login = function(req, res){
-    res.redirect('https://github.com/login/oauth/authorize?client_id=' + config.github.clientId + '&scope=' + config.github.askedScopes);
-};
-
-exports.loginCallback = function(req, res){
     if (!req.query.code){
-        res.send(400, 'Missing code');
+        res.redirect('https://github.com/login/oauth/authorize?client_id=' + config.github.clientId + '&scope=' + config.github.askedScopes);
         return;
     }
     var tokenReq = https.request({
@@ -72,7 +68,8 @@ exports.loginCallback = function(req, res){
                     console.log('userProfile data type: ' + typeof data);
                     console.log('userProfile data: ' + JSON.stringify(data));
                 }
-                //Save the new user
+                //Check whether the user already exist
+                //User.findOne({})
             });
         });
     });

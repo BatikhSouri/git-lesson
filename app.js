@@ -46,7 +46,6 @@ app.use(app.router);
 app.get('/', routes.index);
 app.get('/lesson/:id', routes.showLesson);
 app.get('/login', routes.login);
-app.get('/login/callback', routes.loginCallback);
 app.get('/logout', routes.logout);
 app.post('/hook', routes.hook);
 
