@@ -60,15 +60,31 @@ exports.loginCallback = function(req, res){
                 return;
             }
             var receivedScopes = parsedGhRes.scope.split(/,/g);
+            var missingScopes = checkRequiredScopeIntegrity(receivedScopes);
+            if (missingScopes.length > 0){
+                res.render('error', {title: 'Login error', message: 'Missing github authorizations: ' + missingScopes.join(', ')});
+                return;
+            }
+            var ghUserClient = ghClientForToken(parsedGhRes.token);
+            getUserProfile(ghUserClient, function(err, data){
+                if (err) console.error('err: ' + JSON.stringify(err));
+                else {
+                    console.log('userProfile data type: ' + typeof data);
+                    console.log('userProfile data: ' + JSON.stringify(data));
+                }
+                //Save the new user
+            });
         });
     });
-    tokenReq.on('error')
-    req.end();
+    tokenReq.on('error', function(err){
+        console.error('Error while getting token for code ' + req.query.code + '\n' + err);
+    });
+    tokenReq.end();
 };
 
 exports.logout = function(req, res){
     console.log('req.session: ' + JSON.stringify(req.session));
-    Session.remove({})
+    //Session.remove({})
     req.session = null
     res.redirect('/');
 };
@@ -82,7 +98,7 @@ exports.showLesson = function(req, res){
             return;
         }
         if (requestedLesson && requestedLesson._doc){
-            res.render('lesson', requestedLesson);
+            res.render('lesson', {title: '', lesson: requestedLesson});
         } else {
             res.render('error', {title: 'Lesson not found', message: 'The lesson you requested cannot be found'}, function(err, html){
                 if (err) res.send(404, 'The lesson you requested cannot be found');
@@ -125,25 +141,30 @@ function parseLesson(commitMessage){
     if (lessonTagIndex == -1 || lessonTagIndex == commitMessageLines.length - 1) return null;
     var tagsLine;
     var tagsArray = [];
+    var langLine, lang;
     var lessonText = '';
     for (var i = lessonTagIndex + 1; i < commitMessageLines.length; i++){
-        if (i == 0 && commitMessageLines[i].indexOf('tags=') == 0){
+        if (i == lessonTagIndex + 1 && commitMessageLines[i].indexOf('tags=') == 0){
             tagsLine = commitMessageLines[i];
-            tagsArray = tagsLine.split(/(,| |\+)+/g);
+            tagsArray = tagsLine.substring(4).split(/(,| |\+)+/g);
+        } else if (i == lessonTagIndex + 2 && commitMessageLines[i].indexOf('lang=') == 0){
+            langLine = commitMessageLines[i];
+            lang = langLine.subtring(4).split('=')[1];
         } else {
             lessonText += commitMessageLines[i] + '\r\n';
         }
     }
-    return {lesson: lessonText, tags: tagsArray};
+    return {lesson: lessonText, tags: tagsArray, lang: lang};
 }
 
 function checkRequiredScopeIntegrity(scopeParam){
     var providedScopeArray = (Array.isArray(scopeParam) ? scopeParam : scopeParam.split(/,/g));
     providedScopeArray = arrayUnique(providedScopeArray);
+    var missingScopes = [];
     for (var i = 0; i < requiredScopes.length; i++){
-        if (!binarySearch(providedScopeArray, requiredScopes[i])) return false;
+        if (!binarySearch(providedScopeArray, requiredScopes[i])) missingScopes.push(requiredScopes[i]);
     }
-    return true;
+    return missingScopes;
 }
 
 function arrayUnique(a){
@@ -152,11 +173,11 @@ function arrayUnique(a){
     var h = {}, l = a.length; r = [];
     for (var i = 0; i < l; i++) h[a[i]] = a[i];
     for (e in h) r.push(h[e]);
-    return r.sort();
+    return r;
 }
 
 function binarySearch(array, item, start, end){
-    if (!isSorted(array)) array = array.sort();
+    if (!isSorted(array)) array.sort();
     start = start || 0;
     end = end || array.length - 1;
     if (end < start) return false;
