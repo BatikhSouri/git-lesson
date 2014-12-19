@@ -123,12 +123,12 @@ function ghClientForToken(t){
 
 function getUserProfile(t, callback){
     var client = (typeof t == 'string' ? ghClientForToken(t) : t);
-    client.get(callback);
+    client.user.get(callback);
 }
 
 function getUserEmails(t, callback){
     var client = (typeof t == 'string' ? ghClientForToken(t) : t);
-    client.getEmails(callback);
+    client.user.getEmails(callback);
 }
 
 function parseLesson(commitMessage){
