@@ -1,10 +1,11 @@
 var crypto = require('crypto');
+var Buffer = require('buffer').Buffer;
 var config = require('../config.json');
 var mongoose = require('mongoose');
+var redis = require('redis').createClient(config.redis.port, config.redis.host);
 var dbmodels = require('../dbmodels');
 var User = mongoose.model('User');
 var Lesson = mongoose.model('Lesson');
-var Session = mongoose.model('Session');
 var Hook = mongoose.model('Hook');
 var https = require('https');
 var githubApi = require('github');
@@ -17,15 +18,35 @@ githubApp.authenticate({
     secret: config.github.clientSecret
 });
 
+var pageDownSanitizer = require('pagedown/Markdown.Sanitizer').getSanitizingConverter();
+
 var accessTokenPath = '/login/oauth/access_token?client_id=' + config.github.clientId + '&client_secret=' + config.github.clientSecret
 var requiredScopes = arrayUnique(config.github.requiredScopes.split(/,/g));
 
 /* GET home page. */
 exports.index = function(req, res){
-    res.render('index', {title: "git-lesson"});
+    if (req.session.id){
+        checkSession(function(err, connectedUser){
+            if (err){
+                res.render('error', {title: 'Error', message: 'An internal error happened. Sorry for that'});
+                console.error('Error while checking user for session ' + req.session.id + ': ' + err);
+                return;
+            }
+            if (!connectedUser){
+                console.log('This session doesn\'t exist: ' + req.session.id);
+                req.session = null;
+                res.render('index', {title: 'git-lesson'});
+                return;
+            }
+            var renderOptions = {title: 'git-lesson', user: connectedUser}
+            if (req.query.newUser) renderOptions.newUser = true;
+            res.render('index', renderOptions);
+        });
+    } else res.render('index', {title: "git-lesson"});
 };
 
 exports.login = function(req, res){
+
     if (!req.query.code){
         res.redirect('https://github.com/login/oauth/authorize?client_id=' + config.github.clientId + '&scope=' + config.github.askedScopes);
         return;
@@ -46,18 +67,18 @@ exports.login = function(req, res){
             try {
                 parsedGhRes = JSON.parse(ghResBody);
             } catch (e){
-                res.send(500, 'Internal error');
+                res.render('error', {title: 'Authentication error', message: 'Error in GitHub authentication process. Sorry for that', homeButton: true});
                 console.error('Error while parsing github\'s access_token response:\n' + ghResBody + '\nError: ' + e);
                 return;
             }
             if (parsedGhRes.error){
-                res.redirect('/');
+                res.render('error', {title: 'Authentication error', message: 'Error in GitHub authentication process. Sorry for that', homeButton: true});
                 console.error('Auth error:\n' + JSON.stringify(parsedGhRes));
                 return;
             }
             console.log(parsedGhRes.access_token && parsedGhRes.scope);
             if (!(parsedGhRes.access_token && parsedGhRes.scope)){
-                res.send(500, 'Internal error');
+                res.render('error', {title: 'Authentication error', message: 'Error in GitHub authentication process. Sorry for that', homeButton: true});
                 console.error('Error while parsing github\'s access_token response:\nmissing token and/or scope properties:\nReceived response:\n' + JSON.stringify(parsedGhRes));
                 return;
             }
@@ -69,26 +90,64 @@ exports.login = function(req, res){
             }
             var ghUserClient = ghClientForToken(parsedGhRes.access_token);
             getUserProfile(ghUserClient, function(err, data){
-                if (err) console.error('err: ' + JSON.stringify(err));
-                else {
-                    console.log('userProfile data type: ' + typeof data);
-                    console.log('userProfile data: ' + JSON.stringify(data));
+                if (err){
+                    res.render('error', {title: 'Authentication error', message: 'Error while creating your account. Sorry for that', homeButton: true});
+                    console.error('err: ' + JSON.stringify(err));
+                } else {
+                    //Check whether the user already exist
+                    User.count({id: data.id}, function(err, existingUser){
+                        if (err){
+                            console.error('Error while checking if user ' + data.id + ' exists in DB: ' + err);
+                            res.render('error', {title: 'Authentication error', message: 'Error in GitHub authentication process. Sorry for that', homeButton: true});
+                            return;
+                        }
+                        if (existingUser > 0){
+                            User.update({id: data.id}, {username: data.login, token: parsedGhRes.access_token, code: req.query.code, avatarUrl: data.avatar_url}, function(err){
+                                if (err){
+                                    res.render('error', {title: 'Authentication error', message: 'Error in GitHub authentication process. Sorry for that', homeButton: true});
+                                    console.error('Error while updating existing user ' + data.id + ': ' + err);
+                                    return;
+                                }
+                                //Create session
+                                var sessionId = createSession(data.id);
+                                req.session.id = sessionId;
+                                res.redirect('/');
+                            });
+                        } else {
+                            var newUser = new User({
+                                id: data.id,
+                                username: data.login,
+                                token: parsedGhRes.access_token,
+                                code: req.query.code,
+                                avatarUrl: data.avatar_url
+                            });
+                            newUser.save(function(err){
+                                if (err){
+                                    res.render('error', {title: 'Account error', message: 'Error while creating your account. Sorry for that. Please retry later', homeButton: true});
+                                    console.error('Error while saving account for userId ' + data.id + ': ' + err);
+                                    return;
+                                }
+                                res.redirect('/?newUser=true');
+                            });
+                        }
+                    });
                 }
-                //Check whether the user already exist
-                //User.findOne({})
             });
         });
     });
     tokenReq.on('error', function(err){
         console.error('Error while getting token for code ' + req.query.code + '\n' + err);
+        res.render('error', {title: 'Connection error', message: 'Error while contacting github. Sorry for that', homeButton: true});
     });
     tokenReq.end();
 };
 
 exports.logout = function(req, res){
     console.log('req.session: ' + JSON.stringify(req.session));
-    //Session.remove({})
-    req.session = null
+    if (req.session.id){
+        deleteSession(req.session.id);
+        req.session = null;
+    }
     res.redirect('/');
 };
 
@@ -112,7 +171,61 @@ exports.showLesson = function(req, res){
 };
 
 exports.hook = function(req, res){
-    //if (!(req.body.repository))
+    console.log('Received headers on hook: ' + JSON.stringify(req.headers));
+    if (!(req.headers['x-github-event'] && req.headers['x-github-guid'] && req.headers['x-hub-signature'])){
+        res.send(400, 'Invalid headers');
+        return;
+    }
+    if (req.headers['x-github-event'].toLowerCase() != 'push'){
+        res.send(200, 'Unsupported hook event');
+        return;
+    }
+    if (!(req.body.repository && req.body.repository.id)){
+        res.send(400, 'Missing repository id field');
+        return
+    }
+    Hook.find({repoId: req.body.repository.id}, function(err, foundHook){
+        if (err){
+            res.send(500, 'Internal error');
+            return;
+        }
+        if (foundHook){
+            var hmac = crypto.createHmac('sha1', new Buffer(foundHook.secret));
+            hmac.update(new Buffer(req.rawBody));
+            var h = hmac.digest('hex');
+            if ('sha1=' + h.toLowerCase() != req.headers['x-hub-signature'].toLowerCase()){
+                //Invalid github signature
+                res.send(401, 'Invalid HMAC signature');
+                return;
+            }
+            processHook();
+        } else {
+            res.send(400, 'Unregistered hook');
+            return;
+        }
+    });
+
+    function processHook(){
+        var commits = req.body.commits;
+        var repo = req.body.repository;
+        for (var i = 0; i < commits.length; i++){
+            var parsedLesson = parseLesson(commits[i].message);
+            if (parsedLesson){
+                parsedLesson.lang = parsedLesson.lang || repo.language;
+                parsedLesson.tags = parsedLesson.tags || [parsedLesson.lang];
+                parsedLesson.id = crypto.pseudoRandomBytes(6).toString('base64');
+                parsedLesson.repoId = repo.id
+                parsedLesson.commitId = commits[i].id
+                parsedLesson.author = req.body.sender.id;
+                parsedLesson.postHtml = pageDownSanitizer.makeHtml(parsedLesson.lesson);
+                var newLesson = new Lesson(parsedLesson);
+                newLesson.save(function(err){
+                    res.send(500, 'Error while parsing a lesson');
+                    return;
+                });
+            }
+        }
+    }
 };
 
 function ghClientForToken(t){
@@ -123,13 +236,38 @@ function ghClientForToken(t){
 
 function getUserProfile(t, callback){
     var client = (typeof t == 'string' ? ghClientForToken(t) : t);
-    client.user.get(callback);
+    client.user.get({}, callback);
 }
 
 function getUserEmails(t, callback){
     var client = (typeof t == 'string' ? ghClientForToken(t) : t);
-    client.user.getEmails(callback);
+    client.user.getEmails({}, callback);
 }
+
+/*
+* Sessions management
+*/
+function createSession(userId, cb){
+    var sessionId = crypto.pseudoRandomBytes(8).toString('hex');
+    redis.hset(config.redis.sessionsHash, sessionId, userId);
+    return sessionId;
+}
+
+function checkSession(sessionId, cb){
+    var userId = redis.hget(config.redis.sessionsHash, sessionId);
+    if (!userId){
+        cb();
+        return;
+    }
+    User.findOne({id: userId}, cb);
+}
+
+function deleteSession(sessionId){
+    redis.hdel(config.redis.sessionsHash, sessionId);
+}
+/*
+* End of: Sessions management
+*/
 
 function parseLesson(commitMessage){
     if (typeof commitMessage != 'string') return null;
@@ -165,7 +303,7 @@ function checkRequiredScopeIntegrity(scopeParam){
     providedScopeArray = arrayUnique(providedScopeArray);
     var missingScopes = [];
     for (var i = 0; i < requiredScopes.length; i++){
-        if (!binarySearch(providedScopeArray, requiredScopes[i])) missingScopes.push(requiredScopes[i]);
+        if (binarySearch(providedScopeArray, requiredScopes[i]) == -1) missingScopes.push(requiredScopes[i]);
     }
     return missingScopes;
 }
@@ -183,11 +321,11 @@ function binarySearch(array, item, start, end){
     if (!isSorted(array)) array.sort();
     start = start || 0;
     end = end || array.length - 1;
-    if (end < start) return false;
+    if (end < start) return -1;
     var middleElementIndex = start + Math.floor((end-start) / 2);
     if (array[middleElementIndex] < item) return binarySearch(array, item, middleElementIndex + 1, end);
     else if (array[middleElementIndex] > item) return binarySearch(array, item, start, middleElementIndex - 1);
-    else return true;
+    else return middleElementIndex;
 }
 
 function isSorted(a){

@@ -5,10 +5,9 @@ var Schema = mongoose.Schema;
 var User = new Schema({
 	id: String,
 	username: String,
-	email: String,
 	code: String,
 	token: String,
-	autoSetup: {type: Boolean, default: true}
+	avatarUrl: String
 });
 
 var Lesson = new Schema({
@@ -19,6 +18,7 @@ var Lesson = new Schema({
 	views: {type: Number, default: 0},
 	stars: {type: Number, default: 0},
 	tags: String,
+	lang: String,
 	repoId: String,
 	commitId: String
 });
@@ -28,14 +28,15 @@ var Lesson = new Schema({
 	lessonId: String
 });*/
 
-var Session = new Schema({
+/*var Session = new Schema({
 	userId: String,
 	sessionCookie: String
-});
+});*/
 
 var Hook = new Schema({
 	repoId: String,
-	secret: String
+	secret: String,
+	url: String
 });
 
 var connStr = 'mongodb://';
@@ -47,7 +48,7 @@ connStr += config.db.host + ':' + (config.db.port || 27017) + '/' + config.db.db
 mongoose.model('User', User);
 mongoose.model('Lesson', Lesson);
 //mongoose.model('Star', Star);
-mongoose.model('Session', Session);
+//mongoose.model('Session', Session);
 mongoose.model('Hook', Hook);
 
 mongoose.connect(connStr, function(err){
