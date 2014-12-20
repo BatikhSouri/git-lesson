@@ -254,12 +254,17 @@ function createSession(userId, cb){
 }
 
 function checkSession(sessionId, cb){
-    var userId = redis.hget(config.redis.sessionsHash, sessionId);
-    if (!userId){
-        cb();
-        return;
-    }
-    User.findOne({id: userId}, cb);
+    redis.hget(config.redis.sessionsHash, sessionId, function(err, userId){
+        if (err){
+            cb(err);
+            return;
+        }
+        if (!userId){
+            cb();
+            return;
+        }
+        User.findOne({id: userId}, cb);
+    });
 }
 
 function deleteSession(sessionId){
