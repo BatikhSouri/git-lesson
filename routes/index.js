@@ -26,7 +26,7 @@ var requiredScopes = arrayUnique(config.github.requiredScopes.split(/,/g));
 /* GET home page. */
 exports.index = function(req, res){
     if (req.session.id){
-        checkSession(function(err, connectedUser){
+        checkSession(req.session.id, function(err, connectedUser){
             if (err){
                 res.render('error', {title: 'Error', message: 'An internal error happened. Sorry for that'});
                 console.error('Error while checking user for session ' + req.session.id + ': ' + err);
