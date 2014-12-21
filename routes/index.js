@@ -160,7 +160,7 @@ exports.showLesson = function(req, res){
             return;
         }
         if (requestedLesson && requestedLesson._doc){
-            res.render('lesson', {title: '', lesson: requestedLesson});
+            res.render('lesson', {title: 'Lesson', lesson: requestedLesson._doc});
         } else {
             res.render('error', {title: 'Lesson not found', message: 'The lesson you requested cannot be found'}, function(err, html){
                 if (err) res.send(404, 'The lesson you requested cannot be found');
@@ -216,6 +216,7 @@ exports.hook = function(req, res){
                 parsedLesson.id = crypto.pseudoRandomBytes(6).toString('base64');
                 parsedLesson.repoId = repo.id
                 parsedLesson.commitId = commits[i].id
+                parsedLesson.parentCommitId = commits[i].
                 parsedLesson.author = req.body.sender.id;
                 parsedLesson.postHtml = pageDownSanitizer.makeHtml(parsedLesson.lesson);
                 var newLesson = new Lesson(parsedLesson);
@@ -301,6 +302,14 @@ function parseLesson(commitMessage){
         }
     }
     return {lesson: lessonText, tags: tagsArray, lang: lang};
+}
+
+function getHeadCommit(hookBody, targetHash){
+    var headCommit = hookBody.before;
+    for (var i = 0; i < hookBody.commits.length; i++){
+
+    }
+    return headCommit;
 }
 
 function checkRequiredScopeIntegrity(scopeParam){

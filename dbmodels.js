@@ -20,7 +20,8 @@ var Lesson = new Schema({
 	tags: String,
 	lang: String,
 	repoId: String,
-	commitId: String
+	commitId: String,
+	parentCommitId: String
 });
 
 /*var Star = new Schema({

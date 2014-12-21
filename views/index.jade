@@ -2,7 +2,7 @@ extends layout
 
 block content
     - if (newUser && user)
-        .alert.alert-succes.alert-dismissable(role="alert")
+        .alert.alert-success.alert-dismissable(role="alert")
             button.close(data-dismiss="alert")
                 span(aria-hidden="true") &times;
                 span.sr-only Close
@@ -18,6 +18,6 @@ block content
                         i.fa.fa-github
     - else
         h1#title #{title}_
-    h2 Latest tips
+    h3 Latest tips
     script.
         
