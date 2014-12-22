@@ -32,7 +32,9 @@ function processTask(callback){
 			return;
 		}
 		if (nextTask.type == 'userRepos'){
+			allReposForUser(nextTask.userId, function(err, userRepos){
 
+			});
 		} else if (nextTask.type == 'hook'){
 			var ownerId = nextTask.ownerId;
 			var repoId = nextTask.repoId;
@@ -67,7 +69,7 @@ function allReposForUser(userId, callback){
 					return;
 				}
 				var currentUsername = currentUserProfile.login;
-				uClient.repos.getFromUser({user: currentUsername}, callback);
+				uClient.repos.getFromUser({headers: config.github.headers, user: currentUsername}, callback);
 			})
 		} else {
 			//Getting all repos for a given user will be then used to setup hooks for that user.
@@ -134,6 +136,7 @@ function scheduleRepos(client, user, reposList, cb){
 					secret: hookSecret
 				};
 				client.repos.createHook({
+					headers: config.github.headers,
 					user: user,
 					repo: repoObj.name,
 					name: config.github.hookName,

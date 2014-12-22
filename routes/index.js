@@ -240,12 +240,12 @@ function ghClientForToken(t){
 
 function getUserProfile(t, callback){
     var client = (typeof t == 'string' ? ghClientForToken(t) : t);
-    client.user.get({}, callback);
+    client.user.get({headers: config.github.headers}, callback);
 }
 
 function getUserEmails(t, callback){
     var client = (typeof t == 'string' ? ghClientForToken(t) : t);
-    client.user.getEmails({}, callback);
+    client.user.getEmails({headers: config.github.headers}, callback);
 }
 
 /*
