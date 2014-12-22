@@ -206,6 +206,9 @@ exports.hook = function(req, res){
     });
 
     function processHook(){
+        var head = req.body.ref;
+        //Only add lessons that are sourced from the master branch
+        if (head != 'refs/head/master') return;
         var commits = req.body.commits;
         var repo = req.body.repository;
         for (var i = 0; i < commits.length; i++){
