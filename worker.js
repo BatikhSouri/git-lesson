@@ -29,19 +29,70 @@ function processTask(callback){
 		} catch (e){
 			console.error('Task cannot be pasred');
 			redis.rpush('failed' + config.redis.tasksList, nextTaskRaw);
+			callback();
 			return;
 		}
 		if (nextTask.type == 'userRepos'){
 			allReposForUser(nextTask.userId, function(err, userRepos){
-
+				if (err){
+					console.error('User\'s repo setup cannot be processed (repos cannot be fetched):\n' + err);
+					redis.rpush('failed' + config.redis.tasksList, nextTaskRaw);
+					callback();
+					return;
+				}
+				if (userRepos && userRepos.length > 0){
+					getUnsetRepos(userRepos, function(err, reposToBeSetup){
+						if (err){
+							console.error('Error while getting unset repos for user ' + nextTask.userId + ':\n' + err);
+							redis.rpush('failed' + config.redis.tasksList, nextTaskRaw);
+							callback();
+							return;
+						}
+						if (reposToBeSetup && reposToBeSetup.length > 0){
+							for (var i = 0; i < reposToBeSetup.length; i++){
+								redis.rpush(config.redis.tasksList, {ownerId: nextTask.userId, repoName: reposToBeSetup[i].name, type: 'hook', newUser: nextTask.newUser});
+							}
+						}
+						callback();
+					});
+				} else callback();
 			});
 		} else if (nextTask.type == 'hook'){
 			var ownerId = nextTask.ownerId;
-			var repoId = nextTask.repoId;
+			User.findOne({id: ownerId}, function(err, repoOwner){
+				if (err){
+
+					callback();
+					return;
+				}
+				if (!repoOwner){
+
+					callback();
+					return;
+				}
+				var ownerName = repoOwner.username;
+				var repoName = nextTask.repoName;
+				scheduleForRepo(repoOwner, repoName, function(err){
+					if (err){
+						console.error('Error while setting up hook for ' + ownerName + '/' + repoName + ':' + err);
+						redis.rpush('failed' + config.redis.tasksList, nextTaskRaw);
+						callback();
+						return;
+					}
+					//Once that the hook is setup, schedule task to search for lessons through previous commits, if the user is not a new one!
+					if (!nextTask.newUser){
+						redis.rpush(config.redis.tasksList, {ownerName: repoOwner.username, repoName: repoName, type: 'commitSearch'});
+					}
+					callback();
+				});
+			});
+		} else if (nextTask.type == 'commitSearch'){
 
 		} else {
 			console.error('Unknown task type: ' + nextTaskRaw);
 			redis.rpush('failed' + config.redis.tasksList, nextTaskRaw);
+			callback();
+			return;
 		}
 	});
 }
@@ -80,7 +131,7 @@ function allReposForUser(userId, callback){
 	});
 }
 
-function scheduleRepos(client, user, reposList, cb){
+/*function scheduleRepos(client, user, reposList, cb){
 
 	var currentRepoIndex = 0;
 	var stackCount = 0;
@@ -114,50 +165,52 @@ function scheduleRepos(client, user, reposList, cb){
 		}
 	}
 	processOne();
+}*/
 
-	function scheduleForRepo(client, user, repoObj, cb){
-		client.repos.getHooks({user: user, repo: repoObj.name}, function(err, currentHooks){
-			if (err){
-				cb(err);
+function scheduleForRepo(storedUserObj, repoObj, cb){
+	var client = ghClientForToken(storedUserObj.token);
+	client.repos.getHooks({user: storedUserObj.username, repo: repoObj.name}, function(err, currentHooks){
+		if (err){
+			cb(err);
+			return;
+		}
+		var gitLessonEnabled = false;
+		for (var i = 0; i < currentHooks.length; i++){
+			if (currentHooks[i].config.url == config.github.hookUrl){
+				gitLessonEnabled = true;
 				return;
 			}
-			var gitLessonEnabled = false;
-			for (var i = 0; i < currentHooks.length; i++){
-				if (currentHooks[i].config.url == config.github.hookUrl){
-					gitLessonEnabled = true;
+		}
+		if (!gitLessonEnabled){
+			var hookSecret = crypto.pseudoRandomBytes(6).toString('base64');
+			var hookConfig = {
+				url: config.github.hookUrl,
+				content_type: 'application/json',
+				secret: hookSecret
+			};
+			client.repos.createHook({
+				headers: config.github.headers,
+				user: storedUserObj.username,
+				repo: repoObj.name,
+				name: config.github.hookName,
+				config: hookConfig,
+				events: ['push'],
+				active: true
+			}, function(err, res){
+				if (err){
+					cb(err);
 					return;
 				}
-			}
-			if (!gitLessonEnabled){
-				var hookSecret = crypto.pseudoRandomBytes(6).toString('base64');
-				var hookConfig = {
-					url: config.github.hookUrl,
-					content_type: 'application/json',
+				var newHook = new Hook({
+					ownerId: storedUserObj.id,
+					repoId: repoObj.id,
+					url: repoObj.html_url,
 					secret: hookSecret
-				};
-				client.repos.createHook({
-					headers: config.github.headers,
-					user: user,
-					repo: repoObj.name,
-					name: config.github.hookName,
-					config: hookConfig,
-					events: ['push'],
-					active: true
-				}, function(err, res){
-					if (err){
-						cb(err);
-						return;
-					}
-					var newHook = new Hook({
-						repoId: repoObj.id,
-						url: repoObj.html_url,
-						secret: hookSecret
-					});
-					newHook.save(cb);
 				});
-			} else cb();
-		});
-	}
+				newHook.save(cb);
+			});
+		} else cb();
+	});
 }
 
 function getUnsetRepos(reposList, cb){
@@ -197,4 +250,10 @@ function getUnsetRepos(reposList, cb){
 		}
 	}
 
+}
+
+function ghClientForToken(t){
+	var c = new githubApi({version: '3.0.0'});
+	c.authenticate({type: 'oauth', token: t});
+	return c;
 }
