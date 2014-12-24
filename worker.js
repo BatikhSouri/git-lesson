@@ -19,17 +19,21 @@ gClient.authenticate({
 });
 
 var processIntervals = [];
+var schedulingInterval;
 var concurrentTasks = 0;
 var maxConcurrentTasks = numCpus * config.github.workersPerCpu;
 
 exports.start = function(){
+	schedulingInterval = setInterval(pendingTasksSchedulingCycle, config.github.workInterval);
+
 	for (var i = 0; i < config.github.workersPerCpu; i++){
 		processIntervals.push(setInterval(processCycle, config.github.workInterval));
 	}
-
 };
 
 exports.stop = function(){
+	if (schedulingInterval) clearInterval(schedulingInterval);
+
 	while (processIntervals.length > 0){
 		clearInterval(processIntervals[0]);
 		processIntervals.splice(0, 1);
@@ -146,6 +150,48 @@ function processTask(callback){
 			redis.rpush('failed' + config.redis.tasksList, nextTaskRaw);
 			callback();
 			return;
+		}
+	});
+}
+
+function pendingTasksSchedulingCycle(){
+	redis.hgetall('delayed' + config.redis.tasksList, function(err, delayedTasks){
+		if (err){
+			console.error('Error while getting the list of delayed tasks: ' + err);
+			return;
+		}
+		if (!delayedTasks) return;
+
+		//Sorting time points by chronological order
+		var targetTimes = Object.keys(delayedTasks);
+		targetTimes.sort(function(a,b){
+			var aNum = Number(a), bNum = Number(b);
+			if (isNaN(aNum) || isNaN(bNum) || aNum == bNum) return 0;
+			return aNum < bNum ? -1 : 1;
+		});
+
+		var currentTime = Date.now();
+		for (var i = 0; i < targetTimes.length; i++){
+			if (targetTimes[i] <= currentTime){
+				//Reading the part of the task list that must be put in the task queue
+				var taskListPart;
+				try {
+					taskListPart = JSON.parse(delayedTasks[targetTimes[i]]);
+				} catch (e){}
+
+				//Remove that part from the delayed task list
+				redis.hdel('delayed' + config.redis.tasksList, targetTimes[i]);
+
+				//Skip if the part cannot be read
+				if (!taskListPart) continue;
+
+				//Putting the new tasks at the end of the queue
+				if (Array.isArray(taskListPart)){
+					for (var j = 0; j < taskListPart.length; j++){
+						redis.rpush(config.redis.tasksList, taskListPart[j]);
+					}
+				} else redis.rpush(config.redis.tasksList, taskListPart);
+			} else break;
 		}
 	});
 }

@@ -1,0 +1,6 @@
+extends layout
+
+block content
+	.lesson
+		a.repoLink(href="#{repo.url}/commit/{lesson.commitId}") Source commit
+		.lessonText #{lesson.postText}
