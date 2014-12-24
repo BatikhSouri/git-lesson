@@ -1,5 +1,6 @@
 var crypto = require('crypto');
 var config = require('./config.json');
+var numCpus = require('os').cpus().length;
 
 var dbmodels = require('./dbmodels');
 var mongoose = require('mongoose');
@@ -17,10 +18,53 @@ gClient.authenticate({
 	secret: config.github.clientSecret
 });
 
+var processIntervals = [];
+var concurrentTasks = 0;
+var maxConcurrentTasks = numCpus * config.github.workersPerCpu;
+
+exports.start = function(){
+	for (var i = 0; i < config.github.workersPerCpu; i++){
+		processIntervals.push(setInterval(processCycle, config.github.workInterval));
+	}
+
+};
+
+exports.stop = function(){
+	while (processIntervals.length > 0){
+		clearInterval(processIntervals[0]);
+		processIntervals.splice(0, 1);
+	}
+};
+
+function processCycle(){
+	redis.llen(config.redis.tasksList, function(err, numWaitingTasks){
+		if (err){
+			console.error('Error while getting the task queue length: ' + err);
+			return;
+		}
+		if (numWaitingTasks == 0){
+			//No task to be processed
+			//Nothing to be done here
+		} else {
+			//Do not allow more than maxConcurrentTasks
+			if (concurrentTasks >= maxConcurrentTasks) return;
+			concurrentTasks++;
+			processTask(function(){
+				concurrentTasks--;
+			});
+		}
+	});
+}
+
 function processTask(callback){
 	redis.lpop(config.redis.tasksList, function(err, nextTaskRaw){
 		if (err){
 			console.error('Error while getting next task from redis: ' + err);
+			return;
+		}
+		//No task received
+		if (!nextTaskRaw || nextTaskRaw.length == 0){
+			callback();
 			return;
 		}
 		var nextTask;
@@ -81,13 +125,22 @@ function processTask(callback){
 					}
 					//Once that the hook is setup, schedule task to search for lessons through previous commits, if the user is not a new one!
 					if (!nextTask.newUser){
-						redis.rpush(config.redis.tasksList, {ownerName: repoOwner.username, repoName: repoName, type: 'commitSearch'});
+						redis.rpush(config.redis.tasksList, {ownerName: repoOwner.username, ownerToken: repoOwner.token, repoName: repoName, type: 'commitSearch'});
 					}
 					callback();
 				});
 			});
 		} else if (nextTask.type == 'commitSearch'){
-
+			var ownerName = nextTask.ownerName;
+			var repoName = nextTask.repoName;
+			var cClient = ghClientForToken(nextTas.ownerToken);
+			var reqOptions = {
+				user: ownerName,
+				repo: repoName,
+				headers: config.github.headers,
+				until: Date(),
+				per_page: 100
+			}
 		} else {
 			console.error('Unknown task type: ' + nextTaskRaw);
 			redis.rpush('failed' + config.redis.tasksList, nextTaskRaw);
