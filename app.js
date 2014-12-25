@@ -8,7 +8,9 @@ var cookieSession = require('cookie-session');
 var bodyParser = require('body-parser');
 
 var config = require('./config.json');
+var worker = require('./worker');
 var routes = require('./routes');
+routes.setAddDelayedTask(worker.addDelayedTask);
 
 var app = express();
 
@@ -79,4 +81,11 @@ app.use(function(err, req, res, next) {
 });
 
 
-module.exports = app;
+var server = http.createServer(app);
+var serverPort = process.env.PORT || config.httpPort || 3000;
+server.listen(serverPort, function(){
+    console.log('Express server listening on port ' + serverPort);
+    worker.start(function(){
+        console.log('Worker has been started');
+    });
+});

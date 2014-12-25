@@ -18,27 +18,39 @@ gClient.authenticate({
 	secret: config.github.clientSecret
 });
 
+var pageDownSanitizer = require('pagedown/Markdown.Sanitizer').getSanitizingConverter();
+
 var processIntervals = [];
 var schedulingInterval;
 var concurrentTasks = 0;
 var maxConcurrentTasks = numCpus * config.github.workersPerCpu;
 
-exports.start = function(){
+var tasksListName = config.redis.tasksList;
+var failedTasksListName = 'failed' + tasksListName;
+var delayedTasksListName = 'delayed' + tasksListName;
+
+exports.start = function(callback){
 	schedulingInterval = setInterval(pendingTasksSchedulingCycle, config.github.workInterval);
 
 	for (var i = 0; i < config.github.workersPerCpu; i++){
 		processIntervals.push(setInterval(processCycle, config.github.workInterval));
 	}
+
+	if (typeof callback == 'function') callback();
 };
 
-exports.stop = function(){
+exports.stop = function(callback){
 	if (schedulingInterval) clearInterval(schedulingInterval);
 
 	while (processIntervals.length > 0){
 		clearInterval(processIntervals[0]);
 		processIntervals.splice(0, 1);
 	}
+
+	if (typeof callback == 'function') callback();
 };
+
+exports.addDelayedTask = addDelayedTask;
 
 function processCycle(){
 	redis.llen(config.redis.tasksList, function(err, numWaitingTasks){
@@ -76,7 +88,7 @@ function processTask(callback){
 			nextTask = JSON.parse(nextTaskRaw);
 		} catch (e){
 			console.error('Task cannot be pasred');
-			redis.rpush('failed' + config.redis.tasksList, nextTaskRaw);
+			redis.rpush(failedTasksListName, nextTaskRaw);
 			callback();
 			return;
 		}
@@ -84,7 +96,7 @@ function processTask(callback){
 			allReposForUser(nextTask.userId, function(err, userRepos){
 				if (err){
 					console.error('User\'s repo setup cannot be processed (repos cannot be fetched):\n' + err);
-					redis.rpush('failed' + config.redis.tasksList, nextTaskRaw);
+					redis.rpush(failedTasksListName, nextTaskRaw);
 					callback();
 					return;
 				}
@@ -92,16 +104,18 @@ function processTask(callback){
 					getUnsetRepos(userRepos, function(err, reposToBeSetup){
 						if (err){
 							console.error('Error while getting unset repos for user ' + nextTask.userId + ':\n' + err);
-							redis.rpush('failed' + config.redis.tasksList, nextTaskRaw);
+							redis.rpush(failedTasksListName, nextTaskRaw);
 							callback();
 							return;
 						}
 						if (reposToBeSetup && reposToBeSetup.length > 0){
 							for (var i = 0; i < reposToBeSetup.length; i++){
-								redis.rpush(config.redis.tasksList, {ownerId: nextTask.userId, repoName: reposToBeSetup[i].name, type: 'hook', newUser: nextTask.newUser});
+								redis.rpush(tasksListName, {ownerId: nextTask.userId, repoName: reposToBeSetup[i].name, type: 'hook', newUser: nextTask.newUser});
 							}
 						}
-						callback();
+						//Schedule the next user new repo search in an hour
+						addDelayedTask({type: 'userRepos', userId: nextTask.userId}, Date.now() + config.github.reposRefreshInterval, callback);
+						//callback();
 					});
 				} else callback();
 			});
@@ -109,12 +123,14 @@ function processTask(callback){
 			var ownerId = nextTask.ownerId;
 			User.findOne({id: ownerId}, function(err, repoOwner){
 				if (err){
-
+					redis.rpush(failedTasksListName, nextTaskRaw);
+					console.error('Error while getting from the DB the user ' + ownerId + ' (owner of repo ' + nextTask.repoName + '): ' + err);
 					callback();
 					return;
 				}
 				if (!repoOwner){
-
+					redis.rpush(failedTasksListName, nextTaskRaw);
+					console.error('Cannot find owner of repo ' + nextTask.repoName + ' (userId: ' + ownerId + '): ' + err);
 					callback();
 					return;
 				}
@@ -123,13 +139,13 @@ function processTask(callback){
 				scheduleForRepo(repoOwner, repoName, function(err){
 					if (err){
 						console.error('Error while setting up hook for ' + ownerName + '/' + repoName + ':' + err);
-						redis.rpush('failed' + config.redis.tasksList, nextTaskRaw);
+						redis.rpush(failedTasksListName, nextTaskRaw);
 						callback();
 						return;
 					}
 					//Once that the hook is setup, schedule task to search for lessons through previous commits, if the user is not a new one!
 					if (!nextTask.newUser){
-						redis.rpush(config.redis.tasksList, {ownerName: repoOwner.username, ownerToken: repoOwner.token, repoName: repoName, type: 'commitSearch'});
+						redis.rpush(tasksListName, {ownerName: repoOwner.username, ownerToken: repoOwner.token, repoName: repoName, type: 'commitSearch'});
 					}
 					callback();
 				});
@@ -142,12 +158,55 @@ function processTask(callback){
 				user: ownerName,
 				repo: repoName,
 				headers: config.github.headers,
-				until: Date(),
+				since: Date(Date.now() - 24*60*60*1000),
 				per_page: 100
-			}
+			};
+			cClient.repos.get({user: ownerName, repo: repoName, headers: config.github.headers}, function(err, repoDescription){
+				if (err){
+					console.error('Error while getting repo information for repo ' + ownerName + '/' + repoName + ': ' + err);
+					redis.rpush(failedTasksListName, nextTaskRaw);
+					callback();
+					return;
+				}
+				var repoId = repoDescription.id;
+				cClient.repos.getCommits(reqOptions, function(err, commitsData){
+					if (err){
+						console.error('Error while getting the last commits for repo ' + ownerName + '/' + repoName + ': ' + err);
+						redis.rpush(failedTasksListName, nextTaskRaw);
+						callback();
+						return;
+					}
+					//No commits received
+					if (!(commitsData && commitsData.length > 0)){
+						callback();
+						return;
+					}
+					for (var i = 0; i < commitsData.length; i++){
+						var commitHash = commitsData[i].sha;
+						var commitMessage = commitsData[i].commit.message;
+						var parsedLesson = parseLesson(commitMessage);
+						if (!parsedLesson) continue;
+						var lessonObj = {
+							id: crypto.pseudoRandomBytes(6).toString('base64'),
+							lang: parsedLesson.lang || repoDescription.language,
+							tags: parsedLesson.tags || [parsedLesson.lang],
+							repoId: repoId,
+							commitId: commitHash,
+							author: committer.id,
+							postHtml: pageDownSanitizer.makeHtml(parsedLesson.lesson)
+						};
+						var newLesson = new Lesson(lessonObj);
+						newLesson.save(function(err){
+							if (err){
+								console.error('Error while saving lesson from worker: ' + JSON.stringify(lessonObj) + ':\n' + err);
+							}
+						});
+					}
+				});
+			});
 		} else {
 			console.error('Unknown task type: ' + nextTaskRaw);
-			redis.rpush('failed' + config.redis.tasksList, nextTaskRaw);
+			redis.rpush(failedTasksListName, nextTaskRaw);
 			callback();
 			return;
 		}
@@ -155,7 +214,7 @@ function processTask(callback){
 }
 
 function pendingTasksSchedulingCycle(){
-	redis.hgetall('delayed' + config.redis.tasksList, function(err, delayedTasks){
+	redis.hgetall(delayedTasksListName, function(err, delayedTasks){
 		if (err){
 			console.error('Error while getting the list of delayed tasks: ' + err);
 			return;
@@ -180,18 +239,55 @@ function pendingTasksSchedulingCycle(){
 				} catch (e){}
 
 				//Remove that part from the delayed task list
-				redis.hdel('delayed' + config.redis.tasksList, targetTimes[i]);
+				redis.hdel(delayedTasksListName, targetTimes[i]);
 
 				//Skip if the part cannot be read
-				if (!taskListPart) continue;
+				if (!taskListPart){
+					redis.rpush(failedTasksListName, delayedTasks[targetTimes[i]]);
+					continue;
+				}
 
 				//Putting the new tasks at the end of the queue
 				if (Array.isArray(taskListPart)){
 					for (var j = 0; j < taskListPart.length; j++){
-						redis.rpush(config.redis.tasksList, taskListPart[j]);
+						redis.rpush(tasksListName, taskListPart[j]);
 					}
-				} else redis.rpush(config.redis.tasksList, taskListPart);
+				} else redis.rpush(tasksListName, taskListPart);
 			} else break;
+		}
+	});
+}
+
+function addDelayedTask(task, toBeDoneTimestamp, callback){
+	redis.hexists(delayedTasksListName, toBeDoneTimestamp, function(err, keyExists){
+		if (err){
+			callback(new Error('Error while determining whether a task is already scheduled for the given timestamp: ' + err));
+			return;
+		}
+		if (keyExists){
+			redis.hget(delayedTasksListName, toBeDoneTimestamp, function(err, currentTaskPointRaw){
+				if (err){
+					callback(new Error('Error while getting the task(s) already scheduled for the given timestamp: ' + err));
+					return;
+				}
+				var currentTaskPoint;
+				try {
+					currentTaskPoint = JSON.parse(currentTaskPointRaw);
+				} catch (e){
+					callback(new Error('Existing tasks cannot be parsed'));
+					return;
+				}
+				if (Array.isArray(currentTaskPoint)){
+					currentTaskPoint.push(task);
+				} else {
+					currentTaskPoint = [currentTaskPoint, task];
+				}
+				redis.hset(delayedTasksListName, toBeDoneTimestamp, JSON.stringify(currentTaskPoint));
+				callback();
+			});
+		} else {
+			redis.hset(delayedTasksListName, toBeDoneTimestamp, JSON.stringify([task]));
+			callback();
 		}
 	});
 }
@@ -206,7 +302,8 @@ function allReposForUser(userId, callback){
 			callback(err);
 			return;
 		}
-		var foundRepoIds = [];
+		var foundRepos = [];
+		var foundErr;
 		if (existingUser){
 			var uClient = new githubApi({version: '3.0.0'});
 			uClient.authenticate({
@@ -219,8 +316,54 @@ function allReposForUser(userId, callback){
 					return;
 				}
 				var currentUsername = currentUserProfile.login;
-				uClient.repos.getFromUser({headers: config.github.headers, user: currentUsername}, callback);
-			})
+				uClient.repos.getFromUser({headers: config.github.headers, user: currentUsername}, function(err, userRepos){
+					if (err){
+						foundErr = err;
+						dataCb();
+						return;
+					}
+					if (userRepos && userRepos.length > 0){
+						userRepos.forEach(function(r){ foundRepos.push(r); });
+					}
+					dataCb();
+				});
+			});
+			uClient.user.getOrgs({headers: config.github.headers, per_page: 100}, function(err, orgs){
+				if (err){
+					foundErr = err;
+					dataCb();
+					return;
+				}
+				if (orgs && orgs.length > 0){
+					for (var i = 0; i < orgs.length; i++){
+						var orgName = orgs[i].login;
+						//Get orgs repos
+						var orgReq = {
+							org: orgName,
+							headers: config.github.headers
+						};
+						cClient.repo.getFromOrg(orgReq, function(err, orgRepos){
+							if (err){
+								foundErr = err;
+								dataCb();
+								return;
+							}
+							if (orgRepos && orgRepos.length > 0){
+								orgRepos.forEach(function(r){ foundRepos.push(r); });
+							}
+							dataCb();
+						});
+					}
+				} else dataCb();
+			});
+
+			var cbCount = 0;
+			function dataCb(){
+				cbCount++;
+				if (cbCount == 2){
+					callback(foundErr, foundRepos);
+				}
+			}
 		} else {
 			//Getting all repos for a given user will be then used to setup hooks for that user.
 			//If user cannot be found in DB, that means we don't have the token to setup hooks for him
@@ -355,4 +498,33 @@ function ghClientForToken(t){
 	var c = new githubApi({version: '3.0.0'});
 	c.authenticate({type: 'oauth', token: t});
 	return c;
+}
+
+function parseLesson(commitMessage){
+	if (typeof commitMessage != 'string') return null;
+	var commitMessageLines = commitMessage.split(/\r\n|\n|\r/gm);
+	var lessonTagIndex = -1;
+	for (var i = 0; i < commitMessageLines.length; i++){
+		if (commitMessageLines[i].indexOf('[lesson]') == 0){
+			lessonTagIndex = i;
+			break;
+		}
+	}
+	if (lessonTagIndex == -1 || lessonTagIndex == commitMessageLines.length - 1) return null;
+	var tagsLine;
+	var tagsArray = [];
+	var langLine, lang;
+	var lessonText = '';
+	for (var i = lessonTagIndex + 1; i < commitMessageLines.length; i++){
+		if (i == lessonTagIndex + 1 && commitMessageLines[i].indexOf('tags=') == 0){
+			tagsLine = commitMessageLines[i];
+			tagsArray = tagsLine.substring(4).split(/(,| |\+)+/g);
+		} else if (i == lessonTagIndex + 2 && commitMessageLines[i].indexOf('lang=') == 0){
+			langLine = commitMessageLines[i];
+			lang = langLine.subtring(4).split('=')[1];
+		} else {
+			lessonText += commitMessageLines[i] + '\r\n';
+		}
+	}
+	return {lesson: lessonText, tags: tagsArray, lang: lang};
 }

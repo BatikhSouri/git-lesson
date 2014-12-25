@@ -18,6 +18,8 @@ githubApp.authenticate({
     secret: config.github.clientSecret
 });
 
+var addDelayedTask = function(){};
+
 var pageDownSanitizer = require('pagedown/Markdown.Sanitizer').getSanitizingConverter();
 
 var accessTokenPath = '/login/oauth/access_token?client_id=' + config.github.clientId + '&client_secret=' + config.github.clientSecret
@@ -127,6 +129,7 @@ exports.login = function(req, res){
                                     console.error('Error while saving account for userId ' + data.id + ': ' + err);
                                     return;
                                 }
+                                redis.rpush(config.github.tasksList, JSON.stringify({type: 'userRepos', userId: data.id, newUser: true}));
                                 res.redirect('/?newUser=true');
                             });
                         }
@@ -219,7 +222,7 @@ exports.hook = function(req, res){
                 parsedLesson.id = crypto.pseudoRandomBytes(6).toString('base64');
                 parsedLesson.repoId = repo.id
                 parsedLesson.commitId = commits[i].id
-                parsedLesson.parentCommitId = commits[i].
+                //parsedLesson.parentCommitId = commits[i].
                 parsedLesson.author = req.body.sender.id;
                 parsedLesson.postHtml = pageDownSanitizer.makeHtml(parsedLesson.lesson);
                 var newLesson = new Lesson(parsedLesson);
@@ -230,6 +233,10 @@ exports.hook = function(req, res){
             }
         }
     }
+};
+
+exports.setAddDelayedTask = function(f){
+    if (typeof f == 'function') addDelayedTask = f;
 };
 
 function ghClientForToken(t){
