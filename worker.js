@@ -342,7 +342,7 @@ function allReposForUser(userId, callback){
 							org: orgName,
 							headers: config.github.headers
 						};
-						uClient.repo.getFromOrg(orgReq, function(err, orgRepos){
+						uClient.repos.getFromOrg(orgReq, function(err, orgRepos){
 							if (err){
 								foundErr = err;
 								dataCb();
