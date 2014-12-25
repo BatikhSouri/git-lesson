@@ -129,7 +129,7 @@ exports.login = function(req, res){
                                     console.error('Error while saving account for userId ' + data.id + ': ' + err);
                                     return;
                                 }
-                                redis.rpush(config.github.tasksList, JSON.stringify({type: 'userRepos', userId: data.id, newUser: true}));
+                                redis.rpush(config.redis.tasksList, JSON.stringify({type: 'userRepos', userId: data.id, newUser: true}));
                                 res.redirect('/?newUser=true');
                             });
                         }
