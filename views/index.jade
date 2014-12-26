@@ -18,6 +18,12 @@ block content
                         i.fa.fa-github
     - else
         h1#title #{title}_
-    h3 Latest tips
+    - if (tips)
+        h3 Latest tips
+        each tip, index in tips
+            .lesson
+                a.repoLink(href="{tip.repo.url}/commit/{tip.lesson.commitId}") Source commit
+                a.permalink(href="/lesson/{tip.lesson.id}") Permalink
+                .lessonText #{tip.lesson.postText}
     script.
         

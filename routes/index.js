@@ -42,7 +42,44 @@ exports.index = function(req, res){
             }
             var renderOptions = {title: 'git-lesson', user: connectedUser}
             if (req.query.newUser) renderOptions.newUser = true;
-            res.render('index', renderOptions);
+            var tips = [];
+            Lesson.find({}).sort({postDate: 'desc'}).limit(25).exec(function(err, latestLessons){
+                if (err){
+                    console.error('Error while getting the latest lessons: ' + err);
+                    renderCb();
+                    return;
+                }
+                if (!(latestLessons && latestLessons.length > 0)){
+                    renderCb();
+                    return;
+                }
+                var hooksRetrieved = 0;
+                for (var i = 0; i < latestLessons.length; i++){
+                    var currentLesson = latestLessons[i];
+                    var currentRepoId = currentLesson.repoId;
+                    var currentLessonId = currentLesson.id;
+                    Hook.findOne({repoId: currentRepoId}, function(err, sourceRepo){
+                        hooksRetrieved++;
+                        if (err){
+                            console.error('Error while getting the source repo for lessonId ' + currentLessonId + ': ' + err);
+                            return;
+                        }
+                        if (!sourceRepo){
+                            console.log('Cannot find source repo for lessonId ' + currentLessonId + ': ' + err);
+                            return;
+                        }
+                        tips.push({lesson: currentLesson, repo: sourceRepo});
+                        if (hooksRetrieved == latestLessons.length){
+                            renderCb();
+                        }
+                    });
+                }
+            });
+
+            function renderCb(){
+                if (tips.length > 0) renderOptions.tips = tips;
+                res.render('index', renderOptions);
+            }
         });
     } else res.render('index', {title: "git-lesson"});
 };
