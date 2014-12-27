@@ -397,7 +397,7 @@ function allReposForUser(userId, callback){
 
 function scheduleForRepo(storedUserObj, repoObj, cb){
 	var client = ghClientForToken(storedUserObj.token);
-	client.repos.getHooks({user: storedUserObj.username, repo: repoObj.name}, function(err, currentHooks){
+	client.repos.getHooks({user: repoObj.owner.login, repo: repoObj.name}, function(err, currentHooks){
 		if (err){
 			cb(err);
 			return;
