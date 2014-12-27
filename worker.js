@@ -418,7 +418,7 @@ function scheduleForRepo(storedUserObj, repoObj, cb){
 			};
 			client.repos.createHook({
 				headers: config.github.headers,
-				user: storedUserObj.username,
+				user: repoObj.owner.login,
 				repo: repoObj.name,
 				name: config.github.hookName,
 				config: hookConfig,
