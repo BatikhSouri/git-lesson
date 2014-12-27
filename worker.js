@@ -137,7 +137,7 @@ function processTask(callback){
 				var ownerName = repoOwner.username;
 				var repoName = nextTask.repoName;
 				var cClient = ghClientForToken(repoOwner.token);
-				cClient.repo.get({headers: config.github.headers, user: ownerName, repo: repoName}, function(err, repoObj){
+				cClient.repos.get({headers: config.github.headers, user: ownerName, repo: repoName}, function(err, repoObj){
 					if (err){
 						console.error('Error while getting repo info: ' + err);
 						return;
