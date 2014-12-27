@@ -40,7 +40,10 @@ exports.start = function(callback){
 };
 
 exports.stop = function(callback){
-	if (schedulingInterval) clearInterval(schedulingInterval);
+	if (schedulingInterval){
+		clearInterval(schedulingInterval);
+		schedulingInterval = null;
+	}
 
 	while (processIntervals.length > 0){
 		clearInterval(processIntervals[0]);
@@ -76,6 +79,7 @@ function processTask(callback){
 	redis.lpop(config.redis.tasksList, function(err, nextTaskRaw){
 		if (err){
 			console.error('Error while getting next task from redis: ' + err);
+			callback();
 			return;
 		}
 		//No task received
@@ -110,12 +114,13 @@ function processTask(callback){
 						}
 						if (reposToBeSetup && reposToBeSetup.length > 0){
 							for (var i = 0; i < reposToBeSetup.length; i++){
-								redis.rpush(tasksListName, JSON.stringify({ownerId: nextTask.userId, repoName: reposToBeSetup[i].name, type: 'hook', newUser: nextTask.newUser}));
+								var hookTask = {ownerId: nextTask.userId, repoName: reposToBeSetup[i].name, type: 'hook', newUser: nextTask.newUser};
+								if (reposToBeSetup[i].owner.id != nextTask.userId) hookTask.ownerName = reposToBeSetup[i].owner.login;
+								redis.rpush(tasksListName, JSON.stringify(hookTask));
 							}
 						}
 						//Schedule the next user new repo search in an hour
 						addDelayedTask({type: 'userRepos', userId: nextTask.userId}, Date.now() + config.github.repoRefreshInterval, callback);
-						//callback();
 					});
 				} else callback();
 			});
@@ -134,12 +139,14 @@ function processTask(callback){
 					callback();
 					return;
 				}
-				var ownerName = repoOwner.username;
+				var ownerName = nextTask.ownerName || repoOwner.username;
 				var repoName = nextTask.repoName;
 				var cClient = ghClientForToken(repoOwner.token);
 				cClient.repos.get({headers: config.github.headers, user: ownerName, repo: repoName}, function(err, repoObj){
 					if (err){
 						console.error('Error while getting repo info: ' + err);
+						redis.rpush(failedTasksListName, nextTaskRaw);
+						callback();
 						return;
 					}
 					scheduleForRepo(repoOwner, repoObj, function(err){
@@ -206,7 +213,9 @@ function processTask(callback){
 						newLesson.save(function(err){
 							if (err){
 								console.error('Error while saving lesson from worker: ' + JSON.stringify(lessonObj) + ':\n' + err);
+								redis.rpush(failedTasksListName, nextTaskRaw);
 							}
+							callback();
 						});
 					}
 				});
@@ -385,42 +394,6 @@ function allReposForUser(userId, callback){
 		}
 	});
 }
-
-/*function scheduleRepos(client, user, reposList, cb){
-
-	var currentRepoIndex = 0;
-	var stackCount = 0;
-
-	//Trying to process linearly-async, without letting the callstack grow indefinitely
-	function processOne(){
-		stackCount++;
-		if (stackCount == 1000){
-			setTimeout(function(){
-				scheduleForRepo(client, user, reposList[currentRepoIndex], function(err){
-					if (err){
-						console.error('Error while setting up a hook for repo ' + user + '/' + reposList[i].name + ':' + err);
-						return;
-					}
-					currentRepoIndex++;
-					if (currentRepoIndex == reposList.length) cb();
-					else processOne();
-				});
-			}, 0);
-			stackCount = 0;
-		} else {
-			scheduleForRepo(client, user, reposList[currentRepoIndex], function(err){
-				if (err){
-					console.error('Error while setting up a hook for repo ' + user + '/' + reposList[i].name + ':' + err);
-					return;
-				}
-				currentRepoIndex++;
-				if (currentRepoIndex == reposList.length) cb();
-				else processOne();
-			});
-		}
-	}
-	processOne();
-}*/
 
 function scheduleForRepo(storedUserObj, repoObj, cb){
 	var client = ghClientForToken(storedUserObj.token);
