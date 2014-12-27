@@ -136,24 +136,31 @@ function processTask(callback){
 				}
 				var ownerName = repoOwner.username;
 				var repoName = nextTask.repoName;
-				scheduleForRepo(repoOwner, repoName, function(err){
+				var cClient = ghClientForToken(repoOwner.token);
+				cClient.repo.get({headers: config.github.headers, user: ownerName, repo: repoName}, function(err, repoObj){
 					if (err){
-						console.error('Error while setting up hook for ' + ownerName + '/' + repoName + ':' + err);
-						redis.rpush(failedTasksListName, nextTaskRaw);
-						callback();
+						console.error('Error while getting repo info: ' + err);
 						return;
 					}
-					//Once that the hook is setup, schedule task to search for lessons through previous commits, if the user is not a new one!
-					if (!nextTask.newUser){
-						redis.rpush(tasksListName, {ownerName: repoOwner.username, ownerToken: repoOwner.token, repoName: repoName, type: 'commitSearch'});
-					}
-					callback();
+					scheduleForRepo(repoOwner, repoObj, function(err){
+						if (err){
+							console.error('Error while setting up hook for ' + ownerName + '/' + repoName + ':' + err);
+							redis.rpush(failedTasksListName, nextTaskRaw);
+							callback();
+							return;
+						}
+						//Once that the hook is setup, schedule task to search for lessons through previous commits, if the user is not a new one!
+						if (!nextTask.newUser){
+							redis.rpush(tasksListName, {ownerName: repoOwner.username, ownerToken: repoOwner.token, repoName: repoName, type: 'commitSearch'});
+						}
+						callback();
+					});
 				});
 			});
 		} else if (nextTask.type == 'commitSearch'){
 			var ownerName = nextTask.ownerName;
 			var repoName = nextTask.repoName;
-			var cClient = ghClientForToken(nextTas.ownerToken);
+			var cClient = ghClientForToken(nextTask.ownerToken);
 			var reqOptions = {
 				user: ownerName,
 				repo: repoName,
