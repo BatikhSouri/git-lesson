@@ -158,7 +158,7 @@ function processTask(callback){
 						}
 						//Once that the hook is setup, schedule task to search for lessons through previous commits, if the user is not a new one!
 						if (!nextTask.newUser){
-							redis.rpush(tasksListName, {ownerName: repoOwner.username, ownerToken: repoOwner.token, repoName: repoName, type: 'commitSearch'});
+							redis.rpush(tasksListName, JSON.stringify({ownerName: repoOwner.username, ownerToken: repoOwner.token, repoName: repoName, type: 'commitSearch'}));
 						}
 						callback();
 					});
