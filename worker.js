@@ -114,7 +114,7 @@ function processTask(callback){
 							}
 						}
 						//Schedule the next user new repo search in an hour
-						addDelayedTask({type: 'userRepos', userId: nextTask.userId}, Date.now() + config.github.reposRefreshInterval, callback);
+						addDelayedTask({type: 'userRepos', userId: nextTask.userId}, Date.now() + config.github.repoRefreshInterval, callback);
 						//callback();
 					});
 				} else callback();
@@ -310,7 +310,7 @@ function allReposForUser(userId, callback){
 				type: 'oauth',
 				token: existingUser.token
 			});
-			uClient.user.get(function(err, currentUserProfile){
+			uClient.user.get({headers: config.github.headers}, function(err, currentUserProfile){
 				if (err) {
 					callback(err);
 					return;
@@ -351,8 +351,14 @@ function allReposForUser(userId, callback){
 							if (orgRepos && orgRepos.length > 0){
 								orgRepos.forEach(function(r){ foundRepos.push(r); });
 							}
-							dataCb();
+							orgCb();
 						});
+					}
+
+					var orgCount = 0;
+					function orgCb(){
+						orgCount++;
+						if (orgCount == orgs.length) dataCb();
 					}
 				} else dataCb();
 			});
@@ -491,6 +497,8 @@ function getUnsetRepos(reposList, cb){
 			});
 		}
 	}
+
+	processOne();
 
 }
 

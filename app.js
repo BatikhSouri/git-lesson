@@ -81,11 +81,15 @@ app.use(function(err, req, res, next) {
 });
 
 
-var server = http.createServer(app);
-var serverPort = process.env.PORT || config.httpPort || 3000;
-server.listen(serverPort, function(){
-    console.log('Express server listening on port ' + serverPort);
-    worker.start(function(){
-        console.log('Worker has been started');
+if (module.parent){
+    module.exports = app;
+} else {
+    var server = http.createServer(app);
+    var serverPort = process.env.PORT || config.httpPort || 3000;
+    server.listen(serverPort, function(){
+        console.log('Express server listening on port ' + serverPort);
+        worker.start(function(){
+            console.log('Worker has been started');
+        });
     });
-});
+}
