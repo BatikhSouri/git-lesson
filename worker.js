@@ -110,7 +110,7 @@ function processTask(callback){
 						}
 						if (reposToBeSetup && reposToBeSetup.length > 0){
 							for (var i = 0; i < reposToBeSetup.length; i++){
-								redis.rpush(tasksListName, {ownerId: nextTask.userId, repoName: reposToBeSetup[i].name, type: 'hook', newUser: nextTask.newUser});
+								redis.rpush(tasksListName, JSON.stringify({ownerId: nextTask.userId, repoName: reposToBeSetup[i].name, type: 'hook', newUser: nextTask.newUser}));
 							}
 						}
 						//Schedule the next user new repo search in an hour
