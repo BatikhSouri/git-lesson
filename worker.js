@@ -56,6 +56,7 @@ exports.stop = function(callback){
 exports.addDelayedTask = addDelayedTask;
 
 function processCycle(){
+	console.log('Process cycle');
 	redis.llen(config.redis.tasksList, function(err, numWaitingTasks){
 		if (err){
 			console.error('Error while getting the task queue length: ' + err);
@@ -67,8 +68,10 @@ function processCycle(){
 		} else {
 			//Do not allow more than maxConcurrentTasks
 			if (concurrentTasks >= maxConcurrentTasks) return;
+			console.log('More parallel work');
 			concurrentTasks++;
 			processTask(function(){
+				console.log('Less parallel work');
 				concurrentTasks--;
 			});
 		}
@@ -156,6 +159,7 @@ function processTask(callback){
 							callback();
 							return;
 						}
+						console.log('A hook has been setup for the repo ' + repoObj.owner.login + '/' + repoObj.name);
 						//Once that the hook is setup, schedule task to search for lessons through previous commits, if the user is not a new one!
 						if (!nextTask.newUser){
 							redis.rpush(tasksListName, JSON.stringify({ownerName: repoObj.owner.login, ownerToken: repoOwner.token, repoName: repoName, type: 'commitSearch'}));
@@ -188,7 +192,7 @@ function processTask(callback){
 						var errObj;
 						if (typeof err == 'string') errObj = JSON.parse(err);
 						else errObj = err;
-						if (errObj.message.toLowerCase() == 'git repository is empty.'){
+						if (errObj.message.toLowerCase().indexOf('git repository is empty') != -1){
 							callback();
 							return;
 						}
