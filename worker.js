@@ -176,7 +176,7 @@ function processTask(callback){
 				user: ownerName,
 				repo: repoName,
 				headers: config.github.headers,
-				since: Date(Date.now() - 24*60*60*1000),
+				//since: Date(Date.now() - 24*60*60*1000),
 				per_page: 100
 			};
 			cClient.repos.get({user: ownerName, repo: repoName, headers: config.github.headers}, function(err, repoDescription){
