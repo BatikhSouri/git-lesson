@@ -185,6 +185,13 @@ function processTask(callback){
 				var repoId = repoDescription.id;
 				cClient.repos.getCommits(reqOptions, function(err, commitsData){
 					if (err){
+						var errObj;
+						if (typeof err == 'string') errObj = JSON.parse(err);
+						else errObj = err;
+						if (errObj.message.toLowerCase() == 'git repository is empty.'){
+							callback();
+							return;
+						}
 						console.error('Error while getting the last commits for repo ' + ownerName + '/' + repoName + ': ' + err);
 						redis.rpush(failedTasksListName, nextTaskRaw);
 						callback();
