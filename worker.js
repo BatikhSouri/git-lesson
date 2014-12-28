@@ -29,7 +29,7 @@ var tasksListName = config.redis.tasksList;
 var failedTasksListName = 'failed' + tasksListName;
 var delayedTasksListName = 'delayed' + tasksListName;
 
-exports.start = function(callback){
+function start(callback){
 	schedulingInterval = setInterval(pendingTasksSchedulingCycle, config.github.workInterval);
 
 	for (var i = 0; i < config.github.workersPerCpu; i++){
@@ -39,7 +39,7 @@ exports.start = function(callback){
 	if (typeof callback == 'function') callback();
 };
 
-exports.stop = function(callback){
+function stop(callback){
 	if (schedulingInterval){
 		clearInterval(schedulingInterval);
 		schedulingInterval = null;
@@ -53,7 +53,15 @@ exports.stop = function(callback){
 	if (typeof callback == 'function') callback();
 };
 
+exports.start = start;
+exports.stop = stop;
+
 exports.addDelayedTask = addDelayedTask;
+
+//If ran as standalone, start processing tasks
+if (!module.parent){
+	start();
+}
 
 function processCycle(){
 	//console.log('Process cycle');
