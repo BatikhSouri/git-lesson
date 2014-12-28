@@ -1,3 +1,4 @@
+var readline = require('readline');
 var config = require('../config');
 var mongoose = require('mongoose');
 var dbmodels = require('../dbmodels');
@@ -6,11 +7,80 @@ var User = mongoose.model('User');
 
 var githubApi = require('github');
 
-Hook.find({}, function(err, hooks){
-	if (err) throw err;
+var params = [];
+//If repoIDs are passed as inline parameters
+if (process.argv.length > 2){
+	for (var i = 2; i < process.argv.length; i++){
+		var currentParameter = process.argv[i];
+		currentParameter = Number(currentParameter);
+		if (isNaN(currentParameter)){
+			console.log(process.argv[i] + ' is not a valid repoId');
+			process.exit(1);
+		}
+		params.push(currentParameter);
+	}
+}
 
-	console.log('Saved hooks: ' + JSON.stringify(hooks));
+if (params.length > 0){
+	getHooksById(params, function(err, hooks){
+		if (err) throw err;
 
+		deleteHooks(hooks);
+	})
+} else {
+	var rl = readline.createInterface({
+		input: process.stdin,
+		output: process.stdout
+	});
+	rl.question('Are you sure you want to delete all hooks? (y/n)', function(ans){
+		if (ans.toLowerCase().indexOf('y') == 0){
+			rl.close();
+			console.log('\nDeleting all hooks!');
+
+			Hook.find({}, function(err, hooks){
+				if (err) throw err;
+
+				deleteHooks(hooks);
+			});
+		} else {
+			console.error('\nAborting!');
+			process.exit();
+		}
+	});
+}
+
+function getHooksById(idArray, callback){
+	var foundRepos = [];
+	var IDindex = 0;
+	var stackCounter = 0;
+
+	function getOne(){
+		Hook.findOne({id: idArray[IDindex]}, function(err, foundRepo){
+			if (err){
+				callback(err);
+				return;
+			}
+			if (foundRepo) foundRepos.push(foundRepo);
+
+			IDindex++;
+			if (IDindex == idArray.length){
+				callback(null, foundRepos);
+				return;
+			}
+
+			stackCounter++;
+			if (stackCounter >= 1000){
+				stackCounter = 0;
+				setTimeout(getOne, 0);
+			} else getOne();
+
+		})
+	}
+
+	getOne();
+}
+
+function deleteHooks(hooks){
 	if (hooks.length == 0){
 		console.log('No hooks to be deleted');
 		process.exit();
@@ -84,7 +154,7 @@ Hook.find({}, function(err, hooks){
 		}
 	}
 	processOne();
-});
+}
 
 function ghClientForToken(t){
 	var c = new githubApi({version: '3.0.0'});
