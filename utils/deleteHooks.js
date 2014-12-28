@@ -29,7 +29,7 @@ Hook.find({}, function(err, hooks){
 
 			var ownerQuery;
 			if (currentRepo.linkedUserId) ownerQuery = {id: currentRepo.linkedUserId};
-			else ownerQuery = {id: repo.ownerId};
+			else ownerQuery = {id: currentRepo.ownerId};
 
 			User.findOne(ownerQuery, function(err, repoOwner){
 				if (err) throw err;
