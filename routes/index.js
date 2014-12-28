@@ -343,7 +343,7 @@ function parseLesson(commitMessage){
             tagsArray = tagsLine.substring(4).split(/(,| |\+)+/g);
         } else if (i == lessonTagIndex + 2 && commitMessageLines[i].indexOf('lang=') == 0){
             langLine = commitMessageLines[i];
-            lang = langLine.subtring(4).split('=')[1];
+            lang = langLine.substring(4).split('=')[1];
         } else {
             lessonText += commitMessageLines[i] + '\r\n';
         }
