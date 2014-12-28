@@ -55,7 +55,7 @@ function getHooksById(idArray, callback){
 	var stackCounter = 0;
 
 	function getOne(){
-		Hook.findOne({id: idArray[IDindex]}, function(err, foundRepo){
+		Hook.findOne({repoId: idArray[IDindex]}, function(err, foundRepo){
 			if (err){
 				callback(err);
 				return;

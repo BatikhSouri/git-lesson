@@ -41,7 +41,8 @@ var Hook = new Schema({
 	name: String,
 	repoId: String,
 	secret: String,
-	url: String
+	url: String,
+	addDate: {type: Date, default: Date.now}
 });
 
 var connStr = 'mongodb://';
