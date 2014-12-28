@@ -406,7 +406,7 @@ function scheduleForRepo(storedUserObj, repoObj, cb){
 		for (var i = 0; i < currentHooks.length; i++){
 			if (currentHooks[i].config.url == config.github.hookUrl){
 				gitLessonEnabled = true;
-				return;
+				break;
 			}
 		}
 		if (!gitLessonEnabled){
