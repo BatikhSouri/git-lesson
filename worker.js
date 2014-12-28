@@ -56,7 +56,7 @@ exports.stop = function(callback){
 exports.addDelayedTask = addDelayedTask;
 
 function processCycle(){
-	console.log('Process cycle');
+	//console.log('Process cycle');
 	redis.llen(config.redis.tasksList, function(err, numWaitingTasks){
 		if (err){
 			console.error('Error while getting the task queue length: ' + err);
@@ -68,10 +68,10 @@ function processCycle(){
 		} else {
 			//Do not allow more than maxConcurrentTasks
 			if (concurrentTasks >= maxConcurrentTasks) return;
-			console.log('More parallel work');
+			//console.log('More parallel work');
 			concurrentTasks++;
 			processTask(function(){
-				console.log('Less parallel work');
+				//console.log('Less parallel work');
 				concurrentTasks--;
 			});
 		}
