@@ -158,7 +158,7 @@ function processTask(callback){
 						}
 						//Once that the hook is setup, schedule task to search for lessons through previous commits, if the user is not a new one!
 						if (!nextTask.newUser){
-							redis.rpush(tasksListName, JSON.stringify({ownerName: repoOwner.username, ownerToken: repoOwner.token, repoName: repoName, type: 'commitSearch'}));
+							redis.rpush(tasksListName, JSON.stringify({ownerName: repoObj.owner.login, ownerToken: repoOwner.token, repoName: repoName, type: 'commitSearch'}));
 						}
 						callback();
 					});
@@ -206,7 +206,7 @@ function processTask(callback){
 							tags: parsedLesson.tags || [parsedLesson.lang],
 							repoId: repoId,
 							commitId: commitHash,
-							author: committer.id,
+							author: commitsData[i].committer.id,
 							postHtml: pageDownSanitizer.makeHtml(parsedLesson.lesson)
 						};
 						var newLesson = new Lesson(lessonObj);
@@ -266,9 +266,9 @@ function pendingTasksSchedulingCycle(){
 				//Putting the new tasks at the end of the queue
 				if (Array.isArray(taskListPart)){
 					for (var j = 0; j < taskListPart.length; j++){
-						redis.rpush(tasksListName, taskListPart[j]);
+						redis.rpush(tasksListName, JSON.stringify(taskListPart[j]));
 					}
-				} else redis.rpush(tasksListName, taskListPart);
+				} else redis.rpush(tasksListName, JSON.stringify(taskListPart));
 			} else break;
 		}
 	});
@@ -430,7 +430,10 @@ function scheduleForRepo(storedUserObj, repoObj, cb){
 					return;
 				}
 				var newHook = new Hook({
-					ownerId: storedUserObj.id,
+					linkedUserId: storedUserObj.id,
+					ownerId: repoObj.owner.id,
+					ownerName: repoObj.owner.login,
+					name: repoObj.name,
 					repoId: repoObj.id,
 					url: repoObj.html_url,
 					secret: hookSecret

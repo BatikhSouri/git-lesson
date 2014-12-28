@@ -35,7 +35,10 @@ var Lesson = new Schema({
 });*/
 
 var Hook = new Schema({
+	linkedUserId: String,
 	ownerId: String,
+	ownerName: String,
+	name: String,
 	repoId: String,
 	secret: String,
 	url: String
