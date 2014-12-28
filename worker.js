@@ -100,6 +100,9 @@ function processTask(callback){
 			return;
 		}
 		if (nextTask.type == 'userRepos'){
+			//Schedule the next user new repo search in an hour
+			addDelayedTask({type: 'userRepos', userId: nextTask.userId}, Date.now() + config.github.repoRefreshInterval, callback);
+			//Get all the public repos the user has access to (including organizations that the user has publicized his membership)
 			allReposForUser(nextTask.userId, function(err, userRepos){
 				if (err){
 					console.error('User\'s repo setup cannot be processed (repos cannot be fetched):\n' + err);
@@ -122,8 +125,6 @@ function processTask(callback){
 								redis.rpush(tasksListName, JSON.stringify(hookTask));
 							}
 						}
-						//Schedule the next user new repo search in an hour
-						addDelayedTask({type: 'userRepos', userId: nextTask.userId}, Date.now() + config.github.repoRefreshInterval, callback);
 					});
 				} else callback();
 			});
