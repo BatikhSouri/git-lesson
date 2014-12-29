@@ -28,7 +28,7 @@ var requiredScopes = arrayUnique(config.github.requiredScopes.split(/,/g));
 /* GET home page. */
 exports.index = function(req, res){
     var tips = [];
-    var renderOptions = {title: 'git-lesson', user: connectedUser}
+    var renderOptions = {title: 'git-lesson'};
 
     if (req.session.id){
         checkSession(req.session.id, function(err, connectedUser){
@@ -40,7 +40,7 @@ exports.index = function(req, res){
             if (!connectedUser){
                 console.log('This session doesn\'t exist: ' + req.session.id);
                 req.session = null;
-                res.render('index', {title: 'git-lesson'});
+                getLatestLessons();
                 return;
             }
             renderOptions.user = connectedUser;
