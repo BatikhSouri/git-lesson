@@ -2,7 +2,9 @@ extends layout
 
 block content
 	.lesson
-		- if (repo)
-			a.repoLink(href="#{repo.url}/commit/#{lesson.commitId}") Source commit
+		.header
+			- if (repo)
+				a.repoLink.pull-right(href="#{repo.url}/commit/#{lesson.commitId}") Source commit
+			.lessonDate.pull-right #{lesson.postDate}
 		.lessonText 
 			!= lesson.postHtml
