@@ -22,8 +22,9 @@ block content
         h3 Latest tips
         each tip, index in tips
             .lesson
-                a.repoLink(href="{tip.repo.url}/commit/{tip.lesson.commitId}") Source commit
-                a.permalink(href="/lesson/{tip.lesson.id}") Permalink
-                .lessonText #{tip.lesson.postText}
+                a.repoLink(href="#{tip.repo.url}/commit/#{tip.lesson.commitId}") Source commit
+                a.permalink(href="/lesson/#{tip.lesson.id}") Permalink
+                .lessonText 
+                    != tip.lesson.postHtml
     script.
         

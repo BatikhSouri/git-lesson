@@ -206,8 +206,15 @@ exports.showLesson = function(req, res){
             console.error('Error while rendering lesson page for lessonId ' + lessonId + ':\n' + err);
             return;
         }
-        if (requestedLesson && requestedLesson._doc){
-            res.render('lesson', {title: 'Lesson', lesson: requestedLesson._doc});
+        if (requestedLesson){
+            Hook.findOne({repoId: requestedLesson.repoId}, function(err, sourceRepo){
+                if (err){
+                    res.send(500, 'Internal error');
+                    console.error('Error while getting the source repo for lessonId ' + lessonId + ':\n' + err);
+                    return;
+                }
+                res.render('lesson', {title: 'Lesson', lesson: requestedLesson, repo: sourceRepo});
+            });
         } else {
             res.render('error', {title: 'Lesson not found', message: 'The lesson you requested cannot be found'}, function(err, html){
                 if (err) res.send(404, 'The lesson you requested cannot be found');
