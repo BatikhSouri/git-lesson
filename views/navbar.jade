@@ -1,0 +1,13 @@
+mixin navbar(homeLink)
+	nav.navbar.navbar-default(role="navigation")
+		.container-fluid
+			.navbar-header
+				button.navbar-toggle.collpased(type="button", data-toggle="collapse", data-target="#header-bar")
+					span.sr-only Toggle navigation
+					span.icon-bar
+					span.icon-bar
+					span.icon-bar
+				a.navbar-brand(href=homeLink) git-lesson
+			#header-bar.collapse.navbar-collapse
+				ul.navbar.navbar-nav
+					li.active

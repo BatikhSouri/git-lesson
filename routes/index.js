@@ -48,7 +48,10 @@ exports.index = function(req, res){
 
             getLatestLessons();
         });
-    } else getLatestLessons();
+    } else {
+        if (req.query.logout) renderOptions.logout = true;
+        getLatestLessons();
+    }
 
     function getLatestLessons(){
         Lesson.find({}).sort({postDate: 'desc'}).limit(25).exec(function(err, latestLessons){
@@ -195,7 +198,7 @@ exports.logout = function(req, res){
         deleteSession(req.session.id);
         req.session = null;
     }
-    res.redirect('/');
+    res.redirect('/?logout=true');
 };
 
 exports.showLesson = function(req, res){
@@ -215,6 +218,7 @@ exports.showLesson = function(req, res){
                 }
                 res.render('lesson', {title: 'Lesson', lesson: requestedLesson, repo: sourceRepo});
             });
+            //Get author!
         } else {
             res.render('error', {title: 'Lesson not found', message: 'The lesson you requested cannot be found'}, function(err, html){
                 if (err) res.send(404, 'The lesson you requested cannot be found');

@@ -5,8 +5,62 @@ body {
 a {
   color: #00b7ff;
 }
-#loginButton > img {
-  height: 24px;
-  width: 24px;
+#title {
+  font: Consolas, Menlo, Monaco, Lucida Console, Liberation Mono, DejaVu Sans Mono, Bitstream Vera Sans Mono, Courier New, monospace, serif;
+}
+#loginButton > i {
+  font-size: 24px;
   margin-left: 6px;
+}
+.lesson {
+  background: #fff;
+  border-color: #808080;
+  border-radius: 4px;
+  border-style: solid;
+  border-width: 1px;
+  padding: 10px;
+  margin-bottom: 10px;
+/*box-shadow*/
+}
+.lesson > .header {
+  border-bottom-color: #000;
+  border-bottom-style: solid;
+  border-bottom-width: 1px;
+  height: 20px;
+}
+.lesson > .header .pull-left {
+  float: left;
+  margin-left: 0px;
+}
+.lesson > .header .pull-right {
+  float: right;
+  margin-right: 0px;
+}
+.lesson > .header > a {
+  margin-right: 4px;
+}
+.lesson > .footer {
+  border-top-color: #000;
+  border-top-style: solid;
+  border-top-width: 1px;
+}
+.lesson > .footer > .tags {
+  height: 16px;
+  border-radius: 8px;
+  border-color: #808080;
+  border-style: solid;
+}
+.lesson .repoLink {
+  font-size: 14px;
+  color: #808080;
+}
+.lesson .lessonText {
+  margin-top: 6px;
+  display: block;
+}
+.lesson .lessonDate {
+  color: #808080;
+}
+nav .navbar-brand {
+  font: Consolas, Menlo, Monaco, Lucida Console, Liberation Mono, DejaVu Sans Mono, Bitstream Vera Sans Mono, Courier New, monospace, serif;
 }
