@@ -27,6 +27,20 @@ block content
                         i.fa.fa-github
     - else
         h1#title #{title}_
+    .row
+        .col-xs-4
+            h1 What?
+            p Publish coding tips right from your commits!
+        .col-xs-4
+            h1 Why?
+            p As coders, we often stumble upon frustarting bugs. These bugs can sometimes takes a few days (if not weeks) to solve.
+                | We look up on the internet if anybody stumbled upon the same problem as us, but sometimes without success.
+        .col-xs-4
+            h1 How?
+            div
+                != 'Login with your GitHub account once. A <a href="https://developer.github.com/webhooks/" target="_blank">webhook</a> will be set up for each of your public repos (including repos from organizations where your publicized your membership). And that\'s it.<br>'
+            div(style="margin-top: 10px")
+                != 'Each time you add a <code>[lesson]</code> line in your git commit message, git-lesson will try to parse the lesson you tried to convey and post in your name on this website.'
     - if (tips)
         h3 Latest tips
         each tip, index in tips

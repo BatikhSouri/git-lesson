@@ -1,5 +1,7 @@
 # git-lesson
 
+__WIP__ Still some tweaks to be done before deploying it!
+
 Sharing coding tips and lessons right from your commits!
 
 ## TO-DO
