@@ -3,7 +3,6 @@ extends layout
 block content
     include navbar.jade
     +navbar('#')
-    // Add logout link/button somewhere at the top of the page
     - if (logout)
         .alert.alert-success.alert-dismissable(role="alert")
             button.close(data-dismiss="alert")

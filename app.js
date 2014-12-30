@@ -48,6 +48,7 @@ app.use(app.router);
 app.get('/', routes.index);
 app.get('/latest', routes.latestLessons);
 app.get('/lesson/:id', routes.showLesson);
+app.get('/profile/:username', routes.showUserProfile);
 app.get('/login', routes.login);
 app.get('/logout', routes.logout);
 app.post('/hook', routes.hook);

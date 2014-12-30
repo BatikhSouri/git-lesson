@@ -210,6 +210,29 @@ exports.showLesson = function(req, res){
     }
 };
 
+exports.showUserProfile = function(req, res){
+    var renderOptions = {};
+    handleSession(req, res, renderOptions, function(){
+        var requestedUsername = req.param('username');
+        User.findOne({username: requestedUsername}, function(err, requestedUser){
+            if (err){
+                res.render('error', {title: 'Internal error', message: 'Sorry for the inconvenience'});
+                console.error('Error while getting profile of user ' + err);
+                return;
+            }
+            if (!requestedUser){
+                res.render('error', {title: 'Cannot be found', message: '@' + requestedUsername + ' cannot be found'});
+                return;
+            }
+            renderOptions.profile = requestedUser;
+            getLessons({author: requestedUser.id}, null, null, null, function(err, postedLessons){
+                renderOptions.postedLessons = postedLessons;
+                res.render('userprofile', renderOptions);
+            });
+        });
+    });
+};
+
 exports.hook = function(req, res){
     console.log('Received headers on hook: ' + JSON.stringify(req.headers));
     if (!(req.headers['x-github-event'] && req.headers['x-github-guid'] && req.headers['x-hub-signature'])){
@@ -344,7 +367,12 @@ function handleSession(req, res, renderOptions, callback){
 
 function getLessons(query, limit, offset, order, callback){
     var lessonsArray = [];
-    Lesson.find(query || {}).sort(order || {postDate: 'desc'}).skip(offset || 0).limit(limit || 25).exec(function(err, latestLessons){
+
+    var dbQuery = Lesson.find(query || {}).sort(order || {postDate: 'desc'}).skip(offset || 0);
+    if (!limit) dbQuery.limit(25);
+    else if (limit > -1) dbQuery.limit(limit);
+
+    dbQuery.exec(function(err, latestLessons){
         if (err){
             console.error('Error while getting the latest lessons: ' + err);
             callback(err, []);

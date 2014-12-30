@@ -1,0 +1,14 @@
+extends layout
+
+block content
+	include navbar.jade
+	+navbar('/')
+	.row
+		.col-xs-4
+			img(src="#{profile.avatarUrl}")
+		.col-xs-8
+			h1 
+				a(href="https://github.com/#{profile.username}") @#{profile.username}
+	h1 Posted lessons
+	include lessonlist.jade
+	+lessonlist(postedLessons)
