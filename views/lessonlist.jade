@@ -5,5 +5,5 @@ mixin lessonlist(tipsArray)
 				a.repoLink.pull-right(href="#{tip.repo.url}/commit/#{tip.lesson.commitId}") Source commit
 				a.permalink.pull-right(href="/lesson/#{tip.lesson.id}") Permalink
 				.lessonDate.pull-right #{tip.lesson.postDate}
-				.lessonText 
+			.lessonText 
 				!= tip.lesson.postHtml
