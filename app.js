@@ -46,6 +46,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use(app.router);
 
 app.get('/', routes.index);
+app.get('/latest', routes.latestLessons);
 app.get('/lesson/:id', routes.showLesson);
 app.get('/login', routes.login);
 app.get('/logout', routes.logout);

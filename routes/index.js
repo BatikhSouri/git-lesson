@@ -28,63 +28,18 @@ var requiredScopes = arrayUnique(config.github.requiredScopes.split(/,/g));
 /* GET home page. */
 exports.index = function(req, res){
     var tips = [];
-    var renderOptions = {title: 'git-lesson'};
+    var renderOptions = {title: 'Home'};
 
-    if (req.session.id){
-        checkSession(req.session.id, function(err, connectedUser){
-            if (err){
-                res.render('error', {title: 'Error', message: 'An internal error happened. Sorry for that'});
-                console.error('Error while checking user for session ' + req.session.id + ': ' + err);
-                return;
-            }
-            if (!connectedUser){
-                console.log('This session doesn\'t exist: ' + req.session.id);
-                req.session = null;
-                getLatestLessons();
-                return;
-            }
-            renderOptions.user = connectedUser;
-            if (req.query.newUser) renderOptions.newUser = true;
-
-            getLatestLessons();
-        });
-    } else {
-        if (req.query.logout) renderOptions.logout = true;
+    handleSession(req, res, renderOptions, function(){
+        if (req.query.newUser) renderOptions.newUser = true;
+        else if (!req.session.id && req.query.logout) renderOptions.logout = true;
         getLatestLessons();
-    }
+    })
 
     function getLatestLessons(){
-        Lesson.find({}).sort({postDate: 'desc'}).limit(25).exec(function(err, latestLessons){
-            if (err){
-                console.error('Error while getting the latest lessons: ' + err);
-                renderCb();
-                return;
-            }
-            if (!(latestLessons && latestLessons.length > 0)){
-                renderCb();
-                return;
-            }
-            var hooksRetrieved = 0;
-            for (var i = 0; i < latestLessons.length; i++){
-                var currentLesson = latestLessons[i];
-                var currentRepoId = currentLesson.repoId;
-                var currentLessonId = currentLesson.id;
-                Hook.findOne({repoId: currentRepoId}, function(err, sourceRepo){
-                    hooksRetrieved++;
-                    if (err){
-                        console.error('Error while getting the source repo for lessonId ' + currentLessonId + ': ' + err);
-                        return;
-                    }
-                    if (!sourceRepo){
-                        console.log('Cannot find source repo for lessonId ' + currentLessonId + ': ' + err);
-                        return;
-                    }
-                    tips.push({lesson: currentLesson, repo: sourceRepo});
-                    if (hooksRetrieved == latestLessons.length){
-                        renderCb();
-                    }
-                });
-            }
+        getLessons(null, null, null, null, function(err, fetchedLessons){
+            tips = fetchedLessons;
+            renderCb();
         });
     }
 
@@ -201,31 +156,58 @@ exports.logout = function(req, res){
     res.redirect('/?logout=true');
 };
 
+exports.latestLessons = function(req, res){
+    var renderOptions = {title: 'Latest lessons'};
+
+    handleSession(req, res, renderOptions, renderPage);
+
+    function renderPage(){
+        getLessons(null, null, null, null, function(err, fetchedLessons){
+            if (err) res.render('error', {title: 'Error', message: 'An internal error occured. Sorry for that'});
+            else {
+                renderOptions.tips = fetchedLessons;
+                res.render('lessonsview', renderOptions);
+            }
+        });
+    }
+};
+
 exports.showLesson = function(req, res){
-    var lessonId = req.param('id');
-    Lesson.find({id: lessonId}, function(err, requestedLesson){
-        if (err){
-            res.send(500, 'Internal error');
-            console.error('Error while rendering lesson page for lessonId ' + lessonId + ':\n' + err);
-            return;
-        }
-        if (requestedLesson){
-            Hook.findOne({repoId: requestedLesson.repoId}, function(err, sourceRepo){
-                if (err){
-                    res.send(500, 'Internal error');
-                    console.error('Error while getting the source repo for lessonId ' + lessonId + ':\n' + err);
-                    return;
-                }
-                res.render('lesson', {title: 'Lesson', lesson: requestedLesson, repo: sourceRepo});
-            });
-            //Get author!
-        } else {
-            res.render('error', {title: 'Lesson not found', message: 'The lesson you requested cannot be found'}, function(err, html){
-                if (err) res.send(404, 'The lesson you requested cannot be found');
-                else res.send(404, html);
-            });
-        }
-    });
+    var renderOptions = {};
+
+    handleSession(req, res, renderOptions, renderPage);
+
+    function renderPage(){
+        var lessonId = req.param('id');
+        Lesson.find({id: lessonId}, function(err, requestedLesson){
+            if (err){
+                res.send(500, 'Internal error');
+                console.error('Error while rendering lesson page for lessonId ' + lessonId + ':\n' + err);
+                return;
+            }
+            if (requestedLesson){
+                Hook.findOne({repoId: requestedLesson.repoId}, function(err, sourceRepo){
+                    if (err){
+                        res.send(500, 'Internal error');
+                        console.error('Error while getting the source repo for lessonId ' + lessonId + ':\n' + err);
+                        return;
+                    }
+                    renderOptions.title = requestedLesson.title || 'Lesson';
+                    renderOptions.lesson = requestedLesson;
+                    renderOptions.repo = sourceRepo
+                    res.render('lesson', renderOptions);
+                });
+                //Get author!
+            } else {
+                renderOptions.title = 'Lesson not found';
+                renderOptions.message = 'The lesson you requested cannot be found';
+                res.render('error', renderOptions, function(err, html){
+                    if (err) res.send(404, 'The lesson you requested cannot be found');
+                    else res.send(404, html);
+                });;
+            }
+        });
+    }
 };
 
 exports.hook = function(req, res){
@@ -336,9 +318,65 @@ function checkSession(sessionId, cb){
 function deleteSession(sessionId){
     redis.hdel(config.redis.sessionsHash, sessionId);
 }
+
+function handleSession(req, res, renderOptions, callback){
+    if (req.session.id){
+        checkSession(req.session.id, function(err, connectedUser){
+            if (err){
+                res.render('error', {title: 'Error', message: 'An internal error happened. Sorry for that'});
+                console.error('Error while checking user for session ' + req.session.id + ': ' + err);
+                return;
+            }
+            if (!connectedUser){
+                console.log('This session doesn\'t exist: ' + req.session.id);
+                req.session = null;
+                callback();
+                return;
+            }
+            renderOptions.user = connectedUser;
+            callback();
+        });
+    } else callback();
+}
 /*
 * End of: Sessions management
 */
+
+function getLessons(query, limit, offset, order, callback){
+    var lessonsArray = [];
+    Lesson.find(query || {}).sort(order || {postDate: 'desc'}).skip(offset || 0).limit(limit || 25).exec(function(err, latestLessons){
+        if (err){
+            console.error('Error while getting the latest lessons: ' + err);
+            callback(err, []);
+            return;
+        }
+        if (!(latestLessons && latestLessons.length > 0)){
+            callback(undefined, []);
+            return;
+        }
+        var hooksRetrieved = 0;
+        for (var i = 0; i < latestLessons.length; i++){
+            var currentLesson = latestLessons[i];
+            var currentRepoId = currentLesson.repoId;
+            var currentLessonId = currentLesson.id;
+            Hook.findOne({repoId: currentRepoId}, function(err, sourceRepo){
+                hooksRetrieved++;
+                if (err){
+                    console.error('Error while getting the source repo for lessonId ' + currentLessonId + ': ' + err);
+                    return;
+                }
+                if (!sourceRepo){
+                    console.log('Cannot find source repo for lessonId ' + currentLessonId + ': ' + err);
+                    return;
+                }
+                lessonsArray.push({lesson: currentLesson, repo: sourceRepo});
+                if (hooksRetrieved == latestLessons.length){
+                    callback(undefined, lessonsArray);
+                }
+            });
+        }
+    });
+}
 
 function parseLesson(commitMessage){
     if (typeof commitMessage != 'string') return null;

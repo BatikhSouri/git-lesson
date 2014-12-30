@@ -1,0 +1,8 @@
+extends layout
+
+block content
+	include navbar.jade
+	+navbar('/')
+	h1= title
+	include lessonlist.jade
+	+lessonlist(tips)
