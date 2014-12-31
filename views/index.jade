@@ -24,26 +24,27 @@ block content
                     button#loginButton.btn.btn-medium.btn-primary
                         span Log in with GitHub
                         i.fa.fa-github
-    .row
-        .col-xs-6
-            .row
-                h1 What?
-                p Publish coding tips right from your commits!
-            .row
-                h1 How?
-                div
-                    != 'Login with your GitHub account once and for all. A <a href="https://developer.github.com/webhooks/" target="_blank">webhook</a> will be set up for each of your public repos (including repos from organizations where your publicized your membership). And that\'s it.<br>'
-                div(style="margin-top: 10px")
-                    != 'Each time you add a <code>[lesson]</code> line in your git commit message, <code>git-lesson</code> will try to parse the lesson you tried to convey and post in your name on this website.'
-        .col-xs-6
-            h1 Why?
-            div As coders, we often stumble upon frustarting bugs. These bugs can sometimes take a few days (if not weeks) to solve.
-                | We look up on the internet if anybody stumbled upon the same problem as us, but sometimes without success.
-            div(style="margin-top: 10px") And that's not it. In my case at least, when I end up finding the solution to the problem I hope that if I've learned from my mistakes, that it's a life <strong>lesson</strong>.
-            div(style="margin-top: 10px")    
-                | And since that there was very few clues on the internet to help me solve my problem (hence why it took me time to actually solve it), I guess that I could potentially help people if I wrote a blog post explaining in detail the bug and its fix.
-                | But when I just fixed the bug and I'm ready to commit the new code, I'm either lazy or have no time to write a lengthy blog post. And I note that my next commit will contain both the solution and the original problem (technically described through the previous commits).
-                | So given the code, what's missing to make my solution helpful for someone else is just to add some more details and tips about the problem solved. So that's git-lesson is about : adding tips and writing coding lessons right attached to your commits.
+    - if (!user)
+        .row
+            .col-xs-6
+                .row
+                    h1 What?
+                    p Publish coding tips right from your commits!
+                .row
+                    h1 How?
+                    div
+                        != 'Login with your GitHub account once and for all. A <a href="https://developer.github.com/webhooks/" target="_blank">webhook</a> will be set up for each of your public repos (including repos from organizations where your publicized your membership). And that\'s it.<br>'
+                    div(style="margin-top: 10px")
+                        != 'Each time you add a <code>[lesson]</code> line in your git commit message, <code>git-lesson</code> will try to parse the lesson you tried to convey and post in your name on this website.'
+            .col-xs-6
+                h1 Why?
+                div As coders, we often stumble upon frustarting bugs. These bugs can sometimes take a few days (if not weeks) to solve.
+                    | We look up on the internet if anybody stumbled upon the same problem as us, but sometimes without success.
+                div(style="margin-top: 10px") And that's not it. In my case at least, when I end up finding the solution to the problem I hope that if I've learned from my mistakes, that it's a life <strong>lesson</strong>.
+                div(style="margin-top: 10px")    
+                    | And since that there was very few clues on the internet to help me solve my problem (hence why it took me time to actually solve it), I guess that I could potentially help people if I wrote a blog post explaining in detail the bug and its fix.
+                    | But when I just fixed the bug and I'm ready to commit the new code, I'm either lazy or have no time to write a lengthy blog post. And I note that my next commit will contain both the solution and the original problem (technically described through the previous commits).
+                    | So given the code, what's missing to make my solution helpful for someone else is just to add some more details and tips about the problem solved. So that's git-lesson is about : adding tips and writing coding lessons right attached to your commits.
     .row
         h1 How to use <code>git-lesson</code>
         ul
@@ -57,18 +58,24 @@ block content
                     li If you want to specify which programming language is the lesson destined (to override the majority language of your repo, for example), add a <code>lang=</code> field followed by the language name. Examples : <code>lang=c</code>, <code>lang=javascript</code>
                     li After that, return to the line again. And now you can begin to write your lesson's body. Markdown is supported (and recommended :) ). Note that in a git commit message, lines beginning by a <code>#</code> are considered as comments
                     li Once you're done, push that commit to github. Your lesson will be then posted on this website under your github username; and it will be linked to the commit to which you attached it. 
-        h3 Here is an example lesson within a git message:
-        pre
-            | Javascript and it's shifting operators, and all the weirdness
-            | [lesson]
-            | title=JavaScript maximum integer capicity and integer shifting operators operate only on 32bits
-            | tags=javascript, number shifting operators 32bits 64bits overflow
-            | lang=javascript
-            | __Hey__,
-            | I was rewriting in javascript a c++ library that handles `long long` integers (which have 64 bit capacity). More specifically, that library did encoding/decoding of these long integers to byte arrays `for` loops and shifting operators.
-            | While rewriting the thing, I forgot that the javascript `Number`, by its floating-point nature, cannot hold 64 bits integers without loosing precision. (As pointed out [here](http://stackoverflow.com/questions/307179/what-is-javascripts-highest-integer-value-that-a-number-can-go-to-without-losin) among other places).
-            | (Because of that?) integer shifting operators in js (like `>>` and `<<`) only operate on 32 bits. So you're in bad luck if you want to handle 64 bit integers in js.
-            | I hope this will help you out. :)
+                .panel.panel-default(style="margin-top: 20px")
+                    #exampleLessonLink.panel-heading(role="tab")
+                        h4.panel-title
+                            a(href="#exampleLesson", data-toggle="collapse", aria-expanded="true", aria-controls="#exampleLesson") Example commit message containing a lesson
+                    #exampleLesson.panel-collapse.collapse
+                        .panel-body
+                            pre
+                                | Javascript and it's shifting operators, and all the weirdness
+                                | [lesson]
+                                | title=JavaScript maximum integer capicity and integer shifting operators operate only on 32bits
+                                | tags=javascript, number shifting operators 32bits 64bits overflow
+                                | lang=javascript
+                                | __Hey__,
+                                | I was rewriting in javascript a c++ library that handles `long long` integers (which have 64 bit capacity). More specifically, that library did encoding/decoding of these long integers to byte arrays `for` loops and shifting operators.
+                                | While rewriting the thing, I forgot that the javascript `Number`, by its floating-point nature, cannot hold 64 bits integers without loosing precision. (As pointed out [here](http://stackoverflow.com/questions/307179/what-is-javascripts-highest-integer-value-that-a-number-can-go-to-without-losin) among other places).
+                                | (Because of that?) integer shifting operators in js (like `>>` and `<<`) only operate on 32 bits. So you're in bad luck if you want to handle 64 bit integers in js.
+                                | I hope this will help you out. :)
+                    
     - if (tips)
         h3 Latest tips
         include lessonlist.jade
