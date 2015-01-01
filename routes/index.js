@@ -308,9 +308,20 @@ exports.hook = function(req, res){
                 parsedLesson.postHtml = pageDownSanitizer.makeHtml(parsedLesson.lesson);
                 var newLesson = new Lesson(parsedLesson);
                 newLesson.save(function(err){
-                    res.send(500, 'Error while parsing a lesson');
-                    return;
+                    if (err) {
+                        console.error('Error while saving lesson ' + JSON.stringfy(parsedLesson) + ':' + err);
+                        res.send(500, 'Error while parsing a lesson');
+                    }
+                    endCb();
                 });
+            }
+        }
+
+        var endCount = 0;
+        function endCb(){
+            endCount++;
+            if (endCount == commits.length){
+                res.send(200, 'Webhook payload received and processed');
             }
         }
     }
