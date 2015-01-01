@@ -522,20 +522,58 @@ function parseLesson(commitMessage){
 		}
 	}
 	if (lessonTagIndex == -1 || lessonTagIndex == commitMessageLines.length - 1) return null;
+	var title;
 	var tagsLine;
 	var tagsArray = [];
 	var langLine, lang;
 	var lessonText = '';
-	for (var i = lessonTagIndex + 1; i < commitMessageLines.length; i++){
-		if (i == lessonTagIndex + 1 && commitMessageLines[i].indexOf('tags=') == 0){
-			tagsLine = commitMessageLines[i];
-			tagsArray = tagsLine.substring(4).split(/(,| |\+)+/g);
-		} else if (i == lessonTagIndex + 2 && commitMessageLines[i].indexOf('lang=') == 0){
-			langLine = commitMessageLines[i];
-			lang = langLine.substring(4).split('=')[1];
-		} else {
-			lessonText += commitMessageLines[i] + '\r\n';
+	var currentLineIndex = lessonTagIndex + 1;
+	if (currentLineIndex >= commitMessageLines.length) return null;
+
+	parseTitle();
+	if (currentLineIndex >= commitMessageLines.length) return null;
+
+	parseTags();
+	if (currentLineIndex >= commitMessageLines.length) return null;
+
+	parseLang();
+	if (currentLineIndex >= commitMessageLines.length) return null;
+
+	for (var i = currentLineIndex; i < commitMessageLines.length; i++){
+		lessonText += commitMessageLines[i] + '\r\n';
+	}
+	return {lesson: lessonText, tags: tagsArray, lang: lang, title: title};
+
+	function parseTitle(){
+		if (commitMessageLines[currentLineIndex].indexOf('title=') == 0){
+			title = sanitizeHtml(commitMessageLines[currentLineIndex].substring(6));
+			currentLineIndex++;
 		}
 	}
-	return {lesson: lessonText, tags: tagsArray, lang: lang};
+
+	function parseTags(){
+		if (commitMessageLines[currentLineIndex].indexOf('tags=') == 0){
+			tagsLine = commitMessageLines[currentLineIndex];
+			tagsArray = sanitizeHtml(tagsLine.substring(5)).split(/(,| |\+)+/g);
+			currentLineIndex++;
+		}
+	}
+
+	function parseLang(){
+		if (commitMessageLines[currentLineIndex].indexOf('lang=') == 0){
+			langLine = commitMessageLines[currentLineIndex];
+			lang = sanitizeHtml(langLine.split('=')[1]);
+			currentLineIndex++;
+		}
+	}
+
+	function sanitizeHtml(text){
+		text = text.replace('&', '&amp;');
+		text = text.replace('\<', '&lt;');
+		text = text.replace('>', '&gt;');
+		text = text.replace('"', "&quot;");
+		text = text.replace('\'', '&#x27;');
+		text = text.replace('/', '&#x2F;');
+		return text;
+	}
 }

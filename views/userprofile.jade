@@ -5,7 +5,7 @@ block content
 	+navbar('/')
 	.row
 		.col-xs-4
-			img(src="#{profile.avatarUrl}")
+			img.profileImage(src="#{profile.avatarUrl}")
 		.col-xs-8
 			h1 
 				a(href="https://github.com/#{profile.username}") @#{profile.username}

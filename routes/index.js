@@ -80,7 +80,7 @@ exports.login = function(req, res){
                 console.error('Auth error:\n' + JSON.stringify(parsedGhRes));
                 return;
             }
-            console.log(parsedGhRes.access_token && parsedGhRes.scope);
+            //console.log(parsedGhRes.access_token && parsedGhRes.scope);
             if (!(parsedGhRes.access_token && parsedGhRes.scope)){
                 res.render('error', {title: 'Authentication error', message: 'Error in GitHub authentication process. Sorry for that', homeButton: true});
                 console.error('Error while parsing github\'s access_token response:\nmissing token and/or scope properties:\nReceived response:\n' + JSON.stringify(parsedGhRes));
@@ -369,9 +369,9 @@ function getLessons(query, limit, offset, order, callback){
     var lessonsArray = [];
 
     var dbQuery = Lesson.find(query || {}).sort(order || {postDate: 'desc'}).skip(offset || 0);
-    if (!limit) dbQuery.limit(25);
-    else if (limit > -1) dbQuery.limit(limit);
-
+    if (!limit) dbQuery = dbQuery.limit(25); //No limit parameter passed -> default limit to 25 elements
+    else if (limit > -1) dbQuery = dbQuery.limit(limit); //A limit has been passed and is different / bigger than -1. Apply it
+    //implicit else : if limit == -1, then no limit
     dbQuery.exec(function(err, latestLessons){
         if (err){
             console.error('Error while getting the latest lessons: ' + err);
@@ -417,22 +417,60 @@ function parseLesson(commitMessage){
         }
     }
     if (lessonTagIndex == -1 || lessonTagIndex == commitMessageLines.length - 1) return null;
+    var title;
     var tagsLine;
     var tagsArray = [];
     var langLine, lang;
     var lessonText = '';
-    for (var i = lessonTagIndex + 1; i < commitMessageLines.length; i++){
-        if (i == lessonTagIndex + 1 && commitMessageLines[i].indexOf('tags=') == 0){
-            tagsLine = commitMessageLines[i];
-            tagsArray = tagsLine.substring(4).split(/(,| |\+)+/g);
-        } else if (i == lessonTagIndex + 2 && commitMessageLines[i].indexOf('lang=') == 0){
-            langLine = commitMessageLines[i];
-            lang = langLine.substring(4).split('=')[1];
-        } else {
-            lessonText += commitMessageLines[i] + '\r\n';
+    var currentLineIndex = lessonTagIndex + 1;
+    if (currentLineIndex >= commitMessageLines.length) return null;
+
+    parseTitle();
+    if (currentLineIndex >= commitMessageLines.length) return null;
+
+    parseTags();
+    if (currentLineIndex >= commitMessageLines.length) return null;
+
+    parseLang();
+    if (currentLineIndex >= commitMessageLines.length) return null;
+
+    for (var i = currentLineIndex; i < commitMessageLines.length; i++){
+        lessonText += commitMessageLines[i] + '\r\n';
+    }
+    return {lesson: lessonText, tags: tagsArray, lang: lang, title: title};
+
+    function parseTitle(){
+        if (commitMessageLines[currentLineIndex].indexOf('title=') == 0){
+            title = sanitizeHtml(commitMessageLines[currentLineIndex].substring(6));
+            currentLineIndex++;
         }
     }
-    return {lesson: lessonText, tags: tagsArray, lang: lang};
+
+    function parseTags(){
+        if (commitMessageLines[currentLineIndex].indexOf('tags=') == 0){
+            tagsLine = commitMessageLines[currentLineIndex];
+            tagsArray = sanitizeHtml(tagsLine.substring(5)).split(/(,| |\+)+/g);
+            currentLineIndex++;
+        }
+    }
+
+    function parseLang(){
+        if (commitMessageLines[currentLineIndex].indexOf('lang=') == 0){
+            langLine = commitMessageLines[currentLineIndex];
+            lang = sanitizeHtml(langLine.split('=')[1]);
+            currentLineIndex++;
+        }
+    }
+
+    function sanitizeHtml(text){
+        text = text.replace('&', '&amp;');
+        text = text.replace('\<', '&lt;');
+        text = text.replace('>', '&gt;');
+        text = text.replace('"', "&quot;");
+        text = text.replace('\'', '&#x27;');
+        text = text.replace('/', '&#x2F;');
+        return text;
+    }
 }
 
 function getHeadCommit(hookBody, targetHash){
