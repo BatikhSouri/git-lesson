@@ -15,8 +15,14 @@ mixin navbar(homeLink)
 						a(href="/") Home
 					li
 						a(href="/latest") Latest
-				- if (user)
-					ul.nav.navbar-nav.navbar-right
+				ul.nav.navbar-nav.navbar-right
+					li
+						a(href="/howto")
+							span How-to
+					li
+						a(href="/faq")
+							span FAQ
+					- if (user)
 						li
 							a#logoutButton(href="/logout")
 								i.fa.fa-power-off

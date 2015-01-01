@@ -1,0 +1,30 @@
+mixin howto()
+	h1 How to use <code>git-lesson</code>
+	ul
+		li
+			<a href="/login">Login</a> with your GitHub account to set it up.
+		li Once you stumble upon an intersting finding that is hardly documented on the internet, or that you fixed that frustrating bug that kept you busy for the last two weeks; please add the following elements in your git commit message so that your tips can be posted on this website :
+			ol
+				li After you entered the commit message you wanted, add a new line containing <code>[lesson]</code>.
+				li If you want to give a title for your lesson, add a <code>title=</code> field followed by the title you want to give
+				li If you want to add keywords to the lesson you want to post, add a <code>tags=</code> field followed by the tags (tags are seperated by spaces, plus signs and/or a comma; those seperators can be mixed). Example : <code>tags=javascript,number shifting</code>
+				li If you want to specify which programming language is the lesson destined (to override the majority language of your repo, for example), add a <code>lang=</code> field followed by the language name. Examples : <code>lang=c</code>, <code>lang=javascript</code>
+				li After that, return to the line again. And now you can begin to write your lesson's body. Markdown is supported (and recommended :) ). Note that in a git commit message, lines beginning by a <code>#</code> are considered as comments
+				li Once you're done, push that commit to github. Your lesson will be then posted on this website under your github username; and it will be linked to the commit to which you attached it. 
+	.panel.panel-default(style="margin-top: 20px")
+		#exampleLessonLink.panel-heading(role="tab")
+			h4.panel-title
+				a(href="#exampleLesson", data-toggle="collapse", aria-expanded="true", aria-controls="#exampleLesson") Example commit message containing a lesson
+				#exampleLesson.panel-collapse.collapse
+					.panel-body
+						pre
+							| Javascript and it's shifting operators, and all the weirdness
+							| [lesson]
+							| title=JavaScript maximum integer capicity and integer shifting operators operate only on 32bits
+							| tags=javascript, number shifting operators 32bits 64bits overflow
+							| lang=javascript
+							| __Hey__,
+							| I was rewriting in javascript a c++ library that handles `long long` integers (which have 64 bit capacity). More specifically, that library did encoding/decoding of these long integers to byte arrays `for` loops and shifting operators.
+							| While rewriting the thing, I forgot that the javascript `Number`, by its floating-point nature, cannot hold 64 bits integers without loosing precision. (As pointed out [here](http://stackoverflow.com/questions/307179/what-is-javascripts-highest-integer-value-that-a-number-can-go-to-without-losin) among other places).
+							| (Because of that?) integer shifting operators in js (like `>>` and `<<`) only operate on 32 bits. So you're in bad luck if you want to handle 64 bit integers in js.
+							| I hope this will help you out. :)

@@ -51,6 +51,8 @@ app.get('/lesson/:id', routes.showLesson);
 app.get('/profile/:username', routes.showUserProfile);
 app.get('/login', routes.login);
 app.get('/logout', routes.logout);
+app.get('/howto', routes.manual);
+app.get('/faq', routes.faq);
 app.post('/hook', routes.hook);
 
 /// catch 404 and forwarding to error handler

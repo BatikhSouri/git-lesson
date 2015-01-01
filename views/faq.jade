@@ -1,0 +1,36 @@
+mixin faq(short)
+	.row
+		.col-md-4.col-md-offset-2
+			.row
+				h1 What?
+				p Publish coding tips right from your commits!
+			.row
+				h1 How?
+				div
+					!= 'Login with your GitHub account once and for all. A <a href="https://developer.github.com/webhooks/" target="_blank">webhook</a> will be set up for each of your public repos (including repos from organizations where your publicized your membership). And that\'s it.<br>'
+				div(style="margin-top: 10px")
+					!= 'Each time you add a <code>[lesson]</code> line in your git commit message, <code>git-lesson</code> will try to parse the lesson you tried to convey and post in your name on this website.'
+		.col-md-4
+			h1 Why?
+			div As coders, we often stumble upon frustarting bugs. These bugs can sometimes take a few days (if not weeks) to solve.
+			| We look up on the internet if anybody stumbled upon the same problem as us, but sometimes without success.
+			div(style="margin-top: 10px") And that's not it. In my case at least, when I end up finding the solution to the problem I hope that if I've learned from my mistakes, that it's a life <strong>lesson</strong>.
+			div(style="margin-top: 10px")    
+			| And since that there was very few clues on the internet to help me solve my problem (hence why it took me time to actually solve it), I guess that I could potentially help people if I wrote a blog post explaining in detail the bug and its fix.
+			| But when I just fixed the bug and I'm ready to commit the new code, I'm either lazy or have no time to write a lengthy blog post. And I note that my next commit will contain both the solution and the original problem (technically described through the previous commits).
+			| So given the code, what's missing to make my solution helpful for someone else is just to add some more details and tips about the problem solved. So that's git-lesson is about : adding tips and writing coding lessons right attached to your commits.
+	.row
+		.col-md-4.col-md-offset-2
+			.row
+				h3 What is the tech stack you're using? Is this site an open source project?
+				p.faqAnswer 
+					| Git-lesson is a node.js app. We use MongoDB as persistent storage and redis as temporary storage. 
+				p.faqAnswer
+					a(href="https://github.com/BatikhSouri/git-lesson") Yes, this is an open source project.	
+					| Feel free to contribute by reporting issues or filing pull requests. Constructive criticism is surely welcome.
+				h3 Who built this site?
+				p.faqAnswer Hey there, my name is Ahmad Benmrad. I'm an independent software developer living in Switzerland. I'm <a href="https://github.com/BatikhSouri">@BatikhSouri</a> on GitHub.
+		.col-md-4
+			.row
+				h3 Do you look up for lessons each time a repo is added or new user signs up?
+				p.faqAnswer Yes. As of now, whether you just signed up on git-lesson or you're a user who just created/had access to a new public repo, we will crawl through at most the last 100 commits and search for lessons.

@@ -169,10 +169,8 @@ function processTask(callback){
 							return;
 						}
 						console.log('A hook has been setup for the repo ' + repoObj.owner.login + '/' + repoObj.name);
-						//Once that the hook is setup, schedule task to search for lessons through previous commits, if the user is not a new one!
-						if (!nextTask.newUser){
-							redis.rpush(tasksListName, JSON.stringify({ownerName: repoObj.owner.login, ownerToken: repoOwner.token, repoName: repoName, type: 'commitSearch'}));
-						}
+						//Once that the hook is setup, schedule task to search for lessons through previous commits
+						redis.rpush(tasksListName, JSON.stringify({ownerName: repoObj.owner.login, ownerToken: repoOwner.token, repoName: repoName, type: 'commitSearch'}));
 						callback();
 					});
 				});

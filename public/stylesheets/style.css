@@ -33,18 +33,33 @@ a {
   border-bottom-color: #000;
   border-bottom-style: solid;
   border-bottom-width: 1px;
-  height: 20px;
+  height: 60px;
 }
 .lesson > .header .pull-left {
   float: left;
   margin-left: 0px;
+  margin-right: 4px;
 }
 .lesson > .header .pull-right {
   float: right;
   margin-right: 0px;
+  margin-left: 4px;
 }
 .lesson > .header > a {
   margin-right: 4px;
+}
+.lesson > .header > img.profileImage {
+  height: 48px;
+  width: 48px;
+  float: left;
+}
+.lesson > .header > a.userLink {
+  font-size: 16px;
+  color: #000;
+  text-decoration: none;
+}
+.lesson > .header > a.userLink:hover {
+  text-decoration: underline;
 }
 .lesson > .footer {
   border-top-color: #000;
@@ -74,4 +89,30 @@ nav .navbar-brand {
 code {
   color: #000;
   background-color: #f0f0f0;
+}
+.profile .profileImage {
+  height: 230px;
+  width: 230px;
+  float: left;
+}
+.profile .profileImage.small {
+  height: 115px;
+  width: 115px;
+}
+.profile .profileDetails * {
+  margin-left: 10px;
+}
+.profile .profileLink {
+  margin-top: 0px;
+}
+.profile .profileLink a {
+  color: #000;
+  text-decoration: none;
+}
+.profile .profileLink a:hover {
+  text-decoration: underline;
+}
+.faqAnswer {
+  padding-left: 5px;
+  padding-right: 5px;
 }

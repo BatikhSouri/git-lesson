@@ -240,6 +240,20 @@ exports.showUserProfile = function(req, res){
     });
 };
 
+exports.manual = function(req, res){
+    var renderOptions = {title: 'Manual'};
+    handleSession(req, res, renderOptions, function(){
+        res.render('howtoview', renderOptions);
+    });
+};
+
+exports.faq = function(req, res){
+    var renderOptions = {title: 'FAQ'};
+    handleSession(req, res, renderOptions, function(){
+        res.render('faqview', renderOptions);
+    });
+};
+
 exports.hook = function(req, res){
     console.log('Received headers on hook: ' + JSON.stringify(req.headers));
     if (!(req.headers['x-github-event'] && req.headers['x-github-guid'] && req.headers['x-hub-signature'])){

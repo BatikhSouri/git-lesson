@@ -1,0 +1,9 @@
+extends layout
+
+block content
+	include navbar.jade
+	+navbar('/')
+	include howto.jade
+	.row
+		.col-md-8.col-md-offset-2
+			+howto()
