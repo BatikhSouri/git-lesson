@@ -32,7 +32,7 @@ app.use(function(req, res, next){
         rawReqBody += chunk;
     });
     req.on('end', function(){
-        req.rawBody = rawReqBody;
+        req.rawBodyStr = rawReqBody;
         next();
     })
 })

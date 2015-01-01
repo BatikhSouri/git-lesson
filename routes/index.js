@@ -275,7 +275,7 @@ exports.hook = function(req, res){
         }
         if (foundHook){
             var hmac = crypto.createHmac('sha1', new Buffer(foundHook.secret));
-            hmac.update(new Buffer(req.rawBody));
+            hmac.update(new Buffer(req.rawBodyStr));
             var h = hmac.digest('hex');
             if ('sha1=' + h.toLowerCase() != req.headers['x-hub-signature'].toLowerCase()){
                 //Invalid github signature
