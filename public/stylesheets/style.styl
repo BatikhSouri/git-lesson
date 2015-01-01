@@ -38,13 +38,27 @@ a
 .lesson > .header .pull-left
     float: left
     margin-left: 0px
+    margin-right: 4px;
 
 .lesson > .header .pull-right
     float: right
     margin-right: 0px
+    margin-left: 4px;
 
 .lesson > .header > a
     margin-right 4px
+
+.lesson > .header > img.profileImage
+    height: 96px;
+    width: 96px;
+    float: left;
+
+.lesson > .header > a.userLink
+    color: black;
+    text-decoration: none;
+
+.lesson > .header > a.userLink:hover
+    text-decoration: underline;
 
 .lesson > .footer
     border-top-color black
@@ -75,10 +89,24 @@ code
     color: black;
     background-color: rgb(240, 240, 240);
 
-.profileImage
+.profile .profileImage
     height: 230px;
     width: 230px;
+    float: left;
 
-.profileImage.small
+.profile .profileImage.small
     height: 115px;
     width: 115px;
+
+.profile .profileDetails *
+    margin-left: 10px;
+
+.profile .profileLink
+    margin-top: 0px;
+
+.profile .profileLink a
+    color: black;
+    text-decoration: none;
+
+.profile .profileLink a:hover
+    text-decoration: underline;

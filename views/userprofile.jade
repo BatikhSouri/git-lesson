@@ -4,11 +4,13 @@ block content
 	include navbar.jade
 	+navbar('/')
 	.row
-		.col-xs-4
-			img.profileImage(src="#{profile.avatarUrl}")
-		.col-xs-8
-			h1 
-				a(href="https://github.com/#{profile.username}") @#{profile.username}
-	h1 Posted lessons
-	include lessonlist.jade
-	+lessonlist(postedLessons)
+		.col-md-8.col-md-offset-2
+			.profile.row
+				img.profileImage.small(src="#{profile.avatarUrl}")
+				div.profileDetails
+					h3.profileLink 
+						a(href="https://github.com/#{profile.username}") @#{profile.username}
+			.row
+				h1 Posted lessons
+				include lessonlist.jade
+				+lessonlist(postedLessons)

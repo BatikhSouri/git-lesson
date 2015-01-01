@@ -3,6 +3,8 @@ extends layout
 block content
 	include navbar.jade
 	+navbar('/')
-	h1= title
 	include lessonlist.jade
-	+lessonlist(tips)
+	.row
+		.col-md-8.col-md-offset-2
+			h1= title
+			+lessonlist(tips)

@@ -195,9 +195,16 @@ exports.showLesson = function(req, res){
                     renderOptions.title = requestedLesson.title || 'Lesson';
                     renderOptions.lesson = requestedLesson;
                     renderOptions.repo = sourceRepo
-                    res.render('lesson', renderOptions);
+                    User.findOne({id: requestedLesson.author}, function(err, lessonAuthor){
+                        if (err){
+                            res.send(500, 'Internal error');
+                            console.error('Error while getting the author for lessonId ' + lessonId + ':\n' + err);
+                            return;
+                        }
+                        renderOptions.author = lessonAuthor;
+                        res.render('lesson', renderOptions);
+                    });
                 });
-                //Get author!
             } else {
                 renderOptions.title = 'Lesson not found';
                 renderOptions.message = 'The lesson you requested cannot be found';
@@ -382,26 +389,42 @@ function getLessons(query, limit, offset, order, callback){
             callback(undefined, []);
             return;
         }
-        var hooksRetrieved = 0;
+        var endRetrieval = 0;
         for (var i = 0; i < latestLessons.length; i++){
             var currentLesson = latestLessons[i];
             var currentRepoId = currentLesson.repoId;
             var currentLessonId = currentLesson.id;
             Hook.findOne({repoId: currentRepoId}, function(err, sourceRepo){
-                hooksRetrieved++;
                 if (err){
                     console.error('Error while getting the source repo for lessonId ' + currentLessonId + ': ' + err);
+                    lessonsArray.push({lesson: currentLesson});
+                    endCb();
                     return;
                 }
                 if (!sourceRepo){
                     console.log('Cannot find source repo for lessonId ' + currentLessonId + ': ' + err);
+                    lessonsArray.push({lesson: currentLesson});
+                    endCb();
                     return;
                 }
-                lessonsArray.push({lesson: currentLesson, repo: sourceRepo});
-                if (hooksRetrieved == latestLessons.length){
-                    callback(undefined, lessonsArray);
-                }
+                User.findOne({id: currentLesson.author}, function(err, lessonAuthor){
+                    if (err){
+                        console.error('Error while getting author for lessonId ' + currentLessonId + ' in repoId ' + sourceRepo.repoId + ': ' + err);
+                        lessonsArray.push({lesson: currentLesson, repo: sourceRepo});
+                        endCb();
+                        return;
+                    }
+                    lessonsArray.push({lesson: currentLesson, repo: sourceRepo, author: lessonAuthor}); //Whether lessonAuthor is defined or not is irrelevant
+                    endCb();
+                });
             });
+        }
+
+        function endCb(){
+            endRetrieval++;
+            if (endRetrieval == latestLessons.length){
+                callback(undefined, lessonsArray);
+            }
         }
     });
 }
