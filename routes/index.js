@@ -264,11 +264,12 @@ exports.hook = function(req, res){
         res.send(200, 'Unsupported hook event');
         return;
     }
-    if (!(req.body.repository && req.body.repository.id)){
+    var payload = JSON.parse(req.body.payload);
+    if (!(payload.repository && payload.repository.id)){
         res.send(400, 'Missing repository id field');
         return
     }
-    Hook.find({repoId: req.body.repository.id}, function(err, foundHook){
+    Hook.find({repoId: payload.repository.id}, function(err, foundHook){
         if (err){
             res.send(500, 'Internal error');
             return;
@@ -290,11 +291,11 @@ exports.hook = function(req, res){
     });
 
     function processHook(){
-        var head = req.body.ref;
+        var head = payload.ref;
         //Only add lessons that are sourced from the master branch
         if (head != 'refs/head/master') return;
-        var commits = req.body.commits;
-        var repo = req.body.repository;
+        var commits = payload.commits;
+        var repo = payload.repository;
         for (var i = 0; i < commits.length; i++){
             var parsedLesson = parseLesson(commits[i].message);
             if (parsedLesson){
@@ -304,7 +305,7 @@ exports.hook = function(req, res){
                 parsedLesson.repoId = repo.id
                 parsedLesson.commitId = commits[i].id
                 //parsedLesson.parentCommitId = commits[i].
-                parsedLesson.author = req.body.sender.id;
+                parsedLesson.author = payload.sender.id;
                 parsedLesson.postHtml = pageDownSanitizer.makeHtml(parsedLesson.lesson);
                 var newLesson = new Lesson(parsedLesson);
                 newLesson.save(function(err){
