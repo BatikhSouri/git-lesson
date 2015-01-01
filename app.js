@@ -25,9 +25,8 @@ app.use(function(req, res, next){
         next();
         return;
     }
-    //Add the raw request body as req.rawBody if request is on /hook
+    //Add the raw request body as req.rawReqBody if request is on /hook
     req.rawReqBody = '';
-    //req.setEncoding('utf8');
     req.on('data', function(chunk){
         req.rawReqBody += chunk;
     });

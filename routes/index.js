@@ -256,7 +256,7 @@ exports.faq = function(req, res){
 
 exports.hook = function(req, res){
     console.log('Received headers on hook: ' + JSON.stringify(req.headers));
-    if (!(req.headers['x-github-event'] && req.headers['x-github-guid'] && req.headers['x-hub-signature'])){
+    if (!(req.headers['x-github-event'] && req.headers['x-hub-signature'])){
         res.send(400, 'Invalid headers');
         return;
     }
