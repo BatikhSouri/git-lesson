@@ -26,16 +26,16 @@ app.use(function(req, res, next){
         return;
     }
     //Add the raw request body as req.rawBody if request is on /hook
-    var rawReqBody = '';
+    req.rawReqBody = '';
     //req.setEncoding('utf8');
     req.on('data', function(chunk){
-        rawReqBody += chunk;
+        req.rawReqBody += chunk;
     });
     req.on('end', function(){
-        req.rawBodyStr = rawReqBody;
-        next();
+        req.rawReqBodyEnd = true;
     })
-})
+    next();
+});
 
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded());
