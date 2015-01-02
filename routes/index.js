@@ -292,7 +292,7 @@ exports.hook = function(req, res){
     function processHook(){
         var head = payload.ref;
         //Only add lessons that are sourced from the master branch
-        if (head != 'refs/head/master'){
+        if (head != 'refs/heads/master'){
             res.send(200, 'Webhook payload received and processed');
             return;
         }
