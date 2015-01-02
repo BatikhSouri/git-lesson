@@ -418,30 +418,33 @@ function getLessons(query, limit, offset, order, callback){
         }
         var endRetrieval = 0;
         for (var i = 0; i < latestLessons.length; i++){
-            var currentLesson = latestLessons[i];
-            var currentRepoId = currentLesson.repoId;
-            var currentLessonId = currentLesson.id;
+            retrieveOne(latestLessons[i]);
+        }
+
+        function retrieveOne(lesson){
+            var currentRepoId = lesson.repoId;
+            var currentLessonId = lesson.id;
             Hook.findOne({repoId: currentRepoId}, function(err, sourceRepo){
                 if (err){
                     console.error('Error while getting the source repo for lessonId ' + currentLessonId + ': ' + err);
-                    lessonsArray.push({lesson: currentLesson});
+                    lessonsArray.push({lesson: lesson});
                     endCb();
                     return;
                 }
                 if (!sourceRepo){
                     console.log('Cannot find source repo for lessonId ' + currentLessonId + ': ' + err);
-                    lessonsArray.push({lesson: currentLesson});
+                    lessonsArray.push({lesson: lesson});
                     endCb();
                     return;
                 }
-                User.findOne({id: currentLesson.author}, function(err, lessonAuthor){
+                User.findOne({id: lesson.author}, function(err, lessonAuthor){
                     if (err){
                         console.error('Error while getting author for lessonId ' + currentLessonId + ' in repoId ' + sourceRepo.repoId + ': ' + err);
-                        lessonsArray.push({lesson: currentLesson, repo: sourceRepo});
+                        lessonsArray.push({lesson: lesson, repo: sourceRepo});
                         endCb();
                         return;
                     }
-                    lessonsArray.push({lesson: currentLesson, repo: sourceRepo, author: lessonAuthor}); //Whether lessonAuthor is defined or not is irrelevant
+                    lessonsArray.push({lesson: lesson, repo: sourceRepo, author: lessonAuthor}); //Whether lessonAuthor is defined or not is irrelevant
                     endCb();
                 });
             });
