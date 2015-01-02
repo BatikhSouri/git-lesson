@@ -313,7 +313,6 @@ exports.hook = function(req, res){
                 newLesson.save(function(err){
                     if (err) {
                         console.error('Error while saving lesson ' + JSON.stringfy(parsedLesson) + ':' + err);
-                        res.send(500, 'Error while parsing a lesson');
                     }
                     endCb();
                 });
