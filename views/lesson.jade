@@ -1,8 +1,12 @@
 extends layout
 
 block content
+	include navbar.jade
+	+navbar('/')
 	.lesson
 		.header
+			img.profileImage.pull-left(src="#{author.avatarUrl}")
+			a.userLink.pull-left(href="/profile/{author.username}") @#{author.username}
 			- if (repo)
 				a.repoLink.pull-right(href="#{repo.url}/commit/#{lesson.commitId}") Source commit
 			.lessonDate.pull-right #{lesson.postDate}
