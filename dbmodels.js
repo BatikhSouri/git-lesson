@@ -13,6 +13,7 @@ var User = new Schema({
 var Lesson = new Schema({
 	id: String,
 	author: String,
+	title: String,
 	postDate: {type: Date, default: Date.now},
 	postHtml: String,
 	views: {type: Number, default: 0},
