@@ -3,7 +3,7 @@ mixin lessonlist(tipsArray)
 		.lesson
 			.header
 				img.profileImage.pull-left(src="#{tip.author.avatarUrl}")
-				a.userLink.pull-left(href="/profile/{tip.author.username}") @#{tip.author.username}
+				a.userLink.pull-left(href="/profile/#{tip.author.username}") @#{tip.author.username}
 				a.repoLink.pull-right(href="#{tip.repo.url}/commit/#{tip.lesson.commitId}") Source commit
 				a.permalink.pull-right(href="/lesson/#{tip.lesson.id}") Permalink
 				.lessonDate.pull-right #{tip.lesson.postDate}
