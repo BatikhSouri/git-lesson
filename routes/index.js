@@ -269,7 +269,7 @@ exports.hook = function(req, res){
         res.send(400, 'Missing repository id field');
         return
     }
-    Hook.find({repoId: payload.repository.id}, function(err, foundHook){
+    Hook.findOne({repoId: payload.repository.id}, function(err, foundHook){
         if (err){
             res.send(500, 'Internal error');
             return;
