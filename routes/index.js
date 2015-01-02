@@ -255,7 +255,6 @@ exports.faq = function(req, res){
 };
 
 exports.hook = function(req, res){
-    console.log('Received headers on hook: ' + JSON.stringify(req.headers));
     if (!(req.headers['x-github-event'] && req.headers['x-hub-signature'])){
         res.send(400, 'Invalid headers');
         return;
@@ -293,7 +292,10 @@ exports.hook = function(req, res){
     function processHook(){
         var head = payload.ref;
         //Only add lessons that are sourced from the master branch
-        if (head != 'refs/head/master') return;
+        if (head != 'refs/head/master'){
+            res.send(200, 'Webhook payload received and processed');
+            return;
+        }
         var commits = payload.commits;
         var repo = payload.repository;
         for (var i = 0; i < commits.length; i++){
@@ -315,7 +317,7 @@ exports.hook = function(req, res){
                     }
                     endCb();
                 });
-            }
+            } else endCb();
         }
 
         var endCount = 0;
