@@ -179,7 +179,7 @@ exports.showLesson = function(req, res){
 
     function renderPage(){
         var lessonId = req.param('id');
-        Lesson.find({id: lessonId}, function(err, requestedLesson){
+        Lesson.findOne({id: lessonId}, function(err, requestedLesson){
             if (err){
                 res.send(500, 'Internal error');
                 console.error('Error while rendering lesson page for lessonId ' + lessonId + ':\n' + err);
