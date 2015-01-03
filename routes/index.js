@@ -290,6 +290,7 @@ exports.hook = function(req, res){
     });
 
     function processHook(h){
+        var endCount = 0;
         var head = payload.ref;
         //Only add lessons that are sourced from the master branch
         if (head != 'refs/heads/master'){
@@ -385,7 +386,6 @@ exports.hook = function(req, res){
             }
         }
 
-        var endCount = 0;
         function endCb(){
             endCount++;
             if (endCount == commits.length){
