@@ -604,14 +604,31 @@ function parseLesson(commitMessage){
 
 function renderMd(md, repoFullName, accessToken, callback){
     var o = {text: md, mode: (repoFullName ? 'gfm' : 'markdown'), context: repoFullName};
-
+    var oStr = JSON.stringify(o);
     var reqOptions = {
         host: 'api.github.com',
         method: 'post',
         headers: config.github.headers,
-        path: '/markdown?access_token=' + config.
-    }
-    githubApp.markdown.render(o, callback);
+        path: '/markdown?access_token=' + accessToken
+    };
+    var mdReq = https.request(reqOptions, function(res){
+        var accumlatedData = '';
+        res.setEncoding('utf8');
+        res.on('error', function(err){
+            callback(err);
+        });
+        res.on('data', function(d){
+            accumlatedData += d;
+        });
+        res.on('end', function(){
+            callback(null, accumlatedData);
+        });
+    });
+    mdReq.on('error', function(err){
+        callback(err);
+    })
+    mdReq.write(oStr);
+    mdReq.end();
 }
 
 function getHeadCommit(hookBody, targetHash){
