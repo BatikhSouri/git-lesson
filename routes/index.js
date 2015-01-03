@@ -282,14 +282,14 @@ exports.hook = function(req, res){
                 res.send(401, 'Invalid HMAC signature');
                 return;
             }
-            processHook();
+            processHook(foundHook);
         } else {
             res.send(400, 'Unregistered hook');
             return;
         }
     });
 
-    function processHook(){
+    function processHook(h){
         var head = payload.ref;
         //Only add lessons that are sourced from the master branch
         if (head != 'refs/heads/master'){
@@ -298,25 +298,91 @@ exports.hook = function(req, res){
         }
         var commits = payload.commits;
         var repo = payload.repository;
-        for (var i = 0; i < commits.length; i++){
-            var parsedLesson = parseLesson(commits[i].message);
-            if (parsedLesson){
-                parsedLesson.lang = parsedLesson.lang || repo.language;
-                parsedLesson.tags = parsedLesson.tags || [parsedLesson.lang];
-                parsedLesson.id = crypto.pseudoRandomBytes(6).toString('base64');
-                parsedLesson.repoId = repo.id
-                parsedLesson.commitId = commits[i].id
-                //parsedLesson.parentCommitId = commits[i].
-                parsedLesson.author = payload.sender.id;
-                parsedLesson.postHtml = pageDownSanitizer.makeHtml(parsedLesson.lesson);
-                var newLesson = new Lesson(parsedLesson);
-                newLesson.save(function(err){
-                    if (err) {
-                        console.error('Error while saving lesson ' + JSON.stringfy(parsedLesson) + ':' + err);
+        if (payload.forced){
+            //Look for previous lessons in the DB. Needing the hash of the parent commit
+            handleForcedPush(function(err){
+                if (err){
+                    console.log('error while handling previous/overlapping lessons: ' + err);
+                    res.send(500, 'Internal error');
+                    return;
+                }
+                processCommitMessages();
+            });
+        } else processCommitMessages();
+
+        function processCommitMessages(){
+            for (var i = 0; i < commits.length; i++){
+                var parsedLesson = parseLesson(commits[i].message);
+                if (parsedLesson){
+                    parsedLesson.lang = parsedLesson.lang || repo.language;
+                    parsedLesson.tags = parsedLesson.tags || [parsedLesson.lang];
+                    parsedLesson.id = crypto.pseudoRandomBytes(6).toString('base64');
+                    parsedLesson.repoId = repo.id
+                    parsedLesson.commitId = commits[i].id
+                    if (commits[i].parents && commits[i].parents.length > 0){
+                        parsedLesson.parentCommitId = commits[i].parents[0].sha;
                     }
-                    endCb();
-                });
-            } else endCb();
+                    parsedLesson.author = payload.sender.id;
+                    User.findOne({id: parsedLesson.author}, function(err, authorUser){
+                        if (err){
+                            console.error('Cannot get lesson\'s author from db: (authorId: ' + parsedLesson.author + '): ' + err);
+                            endCb();
+                            return;
+                        }
+                        if (!authorUser){
+                            console.error('Author user missing from DB (id: ' + parsedLesson.author + '): ' + err);
+                            endCb();
+                            return;
+                        }
+                        renderMd(parsedLesson.lesson, h.ownerName + '/' + h.name, authorUser.token, function(err, renderedMd){
+                            if (err){
+                                console.error('Error while rendering the markdown for repoId ' + parsedLesson.repoId + ':\n' + err);
+                                endCb();
+                                return;
+                            }
+                            parsedLesson.postHtml = renderedMd;
+                            var newLesson = new Lesson(parsedLesson);
+                            newLesson.save(function(err){
+                                if (err) {
+                                    console.error('Error while saving lesson ' + JSON.stringfy(parsedLesson) + ':' + err);
+                                }
+                                endCb();
+                            });
+                        });
+                    });
+                } else endCb();
+            }
+        }
+
+        function handleForcedPush(callback){
+            var checkCount = 0;
+            var foundErr;
+
+            for (var i = 0; i < commits.length; i++){
+                var currentCommit = commits[i];
+                if (currentCommit.parents && currentCommit.parents.length > 0){
+                    Lesson.findOne({parentCommitId: currentCommit.parents[0].sha}, function(err, existingLesson){
+                        if (err){
+                            foundErr = err;
+                            checkCb();
+                            return;
+                        }
+                        if (existingLesson){
+                            existingLesson.remove(function(err){
+                                if (err){
+                                    foundErr = err;
+                                }
+                                checkCb();
+                            });
+                        } else checkCb();
+                    });
+                } else checkCb();
+            }
+
+            function checkCb(){
+                checkCount++;
+                if (checkCount == commits.length) callback(foundErr);
+            }
         }
 
         var endCount = 0;
@@ -337,6 +403,16 @@ function ghClientForToken(t){
     var c = new githubApi({version: '3.0.0'});
     c.authenticate({type: 'oauth', token: t});
     return c;
+}
+
+function ghClientForId(id, callback){
+    User.findOne({id: id}, function(err, u){
+        if (err) callback(err);
+        else {
+            if (!u) callback(null, null);
+            else callback(null, ghClientForToken(u.token));
+        }
+    });
 }
 
 function getUserProfile(t, callback){
@@ -526,6 +602,18 @@ function parseLesson(commitMessage){
     }
 }
 
+function renderMd(md, repoFullName, accessToken, callback){
+    var o = {text: md, mode: (repoFullName ? 'gfm' : 'markdown'), context: repoFullName};
+
+    var reqOptions = {
+        host: 'api.github.com',
+        method: 'post',
+        headers: config.github.headers,
+        path: '/markdown?access_token=' + config.
+    }
+    githubApp.markdown.render(o, callback);
+}
+
 function getHeadCommit(hookBody, targetHash){
     var headCommit = hookBody.before;
     for (var i = 0; i < hookBody.commits.length; i++){
@@ -569,4 +657,24 @@ function isSorted(a){
         if (!(a[i] < a[i-1])) return false;
     }
     return true;
+}
+
+function mergeObject(o1, o2){
+    if (!(typeof o1 == 'object' && typeof o2 == 'object')) throw new TypeError('invalid parameters type');
+    var r = {};
+    var o1Keys = Object.keys(o1);
+    var o2Keys = Object.keys(o2);
+    for (var i = 0; i < o1Keys.length; i++) r[o1Keys[i]] = o1[o1Keys[i]];
+    for (var i = 0; i < o2Keys.length; i++) r[o2Keys[i]] = o2[o2Keys[i]];
+    return r;
+}
+
+function mergeObjectArray(objectsArray){
+    if (!Array.isArray(objectsArray)) throw new TypeError('objectsArray must be an object');
+    var mergedObject = {};
+    for (var i = 0; i < objectsArray.length; i++){
+        if (typeof objectsArray[i] != 'string') throw new TypeError('item at index ' + i + ' is not an object');
+        mergedObject = mergeObject(mergedObject, objectsArray[i]);
+    }
+    return mergedObject;
 }

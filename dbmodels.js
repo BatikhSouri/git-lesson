@@ -7,7 +7,8 @@ var User = new Schema({
 	username: String,
 	code: String,
 	token: String,
-	avatarUrl: String
+	avatarUrl: String,
+	signupDate: {type: Date, default: Date.now}
 });
 
 var Lesson = new Schema({
@@ -28,11 +29,6 @@ var Lesson = new Schema({
 /*var Star = new Schema({
 	userId: String,
 	lessonId: String
-});*/
-
-/*var Session = new Schema({
-	userId: String,
-	sessionCookie: String
 });*/
 
 var Hook = new Schema({
