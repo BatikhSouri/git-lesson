@@ -585,7 +585,6 @@ function parseLesson(commitMessage){
 	if (lessonTagIndex == -1 || lessonTagIndex == commitMessageLines.length - 1) return null;
 	var title;
 	var tagsLine;
-	var tagsArray = [];
 	var langLine, lang;
 	var lessonText = '';
 	var currentLineIndex = lessonTagIndex + 1;
@@ -603,7 +602,7 @@ function parseLesson(commitMessage){
 	for (var i = currentLineIndex; i < commitMessageLines.length; i++){
 		lessonText += commitMessageLines[i] + '\r\n';
 	}
-	return {lesson: lessonText, tags: tagsArray, lang: lang, title: title};
+	return {lesson: lessonText, tags: tagsLine, lang: lang, title: title};
 
 	function parseTitle(){
 		if (commitMessageLines[currentLineIndex].indexOf('title=') == 0){
@@ -615,7 +614,7 @@ function parseLesson(commitMessage){
 	function parseTags(){
 		if (commitMessageLines[currentLineIndex].indexOf('tags=') == 0){
 			tagsLine = commitMessageLines[currentLineIndex];
-			tagsArray = sanitizeHtml(tagsLine.substring(5)).split(/(,| |\+)+/g);
+			tagsLine = sanitizeHtml(tagsLine.substring(5));
 			currentLineIndex++;
 		}
 	}
