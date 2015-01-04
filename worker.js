@@ -248,16 +248,16 @@ function processTask(callback){
 								}
 								renderMd(parsedLesson.lesson, repoDescription.full_name, authorUser.token, function(err, renderedMd){
 									if (err){
-										console.error('Error while rendering the markdown for repoId ' + parsedLesson.repoId + ':\n' + err);
+										console.error('Error while rendering the markdown for repoId ' + lessonObj.repoId + ':\n' + err);
 										//endCb();
 										//return;
 									} else {
-										parsedLesson.postHtml = renderedMd;
+										lessonObj.postHtml = renderedMd;
 									}
-									var newLesson = new Lesson(parsedLesson);
+									var newLesson = new Lesson(lessonObj);
 									newLesson.save(function(err){
 										if (err){
-											console.error('Error while saving lesson ' + JSON.stringify(parsedLesson) + ':' + err);
+											console.error('Error while saving lesson ' + JSON.stringify(lessonObj) + ':' + err);
 										}
 										endCb();
 									});
