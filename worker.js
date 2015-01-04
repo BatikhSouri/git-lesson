@@ -231,14 +231,14 @@ function processTask(callback){
 								author: commitsData[i].committer.id,
 								postHtml: pageDownSanitizer.makeHtml(parsedLesson.lesson) //Fallback value
 							};
-							User.findOne({id: parsedLesson.author}, function(err, authorUser){
+							User.findOne({id: lessonObj.author}, function(err, authorUser){
 								if (err){
-									console.error('Cannot get lesson\'s author from DB (id: ' + parsedLesson.author + '): ' + err);
+									console.error('Cannot get lesson\'s author from DB (id: ' + lessonObj.author + '): ' + err);
 									endCb();
 									return;
 								}
 								if (!authorUser){
-									console.error('Author user missing from DB (id: ' + parsedLesson.author + '): ' + err);
+									console.error('Author user missing from DB (id: ' + lessonObj.author + '): ' + err);
 									endCb();
 									return;
 								}
@@ -258,14 +258,6 @@ function processTask(callback){
 										endCb();
 									});
 								});
-							});
-							var newLesson = new Lesson(lessonObj);
-							newLesson.save(function(err){
-								if (err){
-									console.error('Error while saving lesson from worker: ' + JSON.stringify(lessonObj) + ':\n' + err);
-									redis.rpush(failedTasksListName, nextTaskRaw);
-								}
-								endCb();
 							});
 						} else endCb();
 					}
