@@ -218,8 +218,12 @@ function processTask(callback){
 					var endCount = 0;
 
 					for (var i = 0; i < commitsData.length; i++){
-						var commitHash = commitsData[i].sha;
-						var commitMessage = commitsData[i].commit.message;
+						processCommitData(commitsData[i]);
+					}
+
+					function processCommitData(d){
+						var commitHash = d.sha;
+						var commitMessage = d.commit.message;
 						var parsedLesson = parseLesson(commitMessage);
 						if (parsedLesson){
 							var lessonObj = {
@@ -228,7 +232,7 @@ function processTask(callback){
 								tags: parsedLesson.tags || [parsedLesson.lang],
 								repoId: repoId,
 								commitId: commitHash,
-								author: commitsData[i].committer.id,
+								author: d.committer.id,
 								postHtml: pageDownSanitizer.makeHtml(parsedLesson.lesson) //Fallback value
 							};
 							User.findOne({id: lessonObj.author}, function(err, authorUser){
