@@ -1,3 +1,4 @@
+var https = require('https');
 var crypto = require('crypto');
 var config = require('./config.json');
 var numCpus = require('os').cpus().length;
@@ -213,28 +214,65 @@ function processTask(callback){
 						callback();
 						return;
 					}
+
+					var endCount = 0;
+
 					for (var i = 0; i < commitsData.length; i++){
 						var commitHash = commitsData[i].sha;
 						var commitMessage = commitsData[i].commit.message;
 						var parsedLesson = parseLesson(commitMessage);
-						if (!parsedLesson) continue;
-						var lessonObj = {
-							id: crypto.pseudoRandomBytes(6).toString('base64'),
-							lang: parsedLesson.lang || repoDescription.language,
-							tags: parsedLesson.tags || [parsedLesson.lang],
-							repoId: repoId,
-							commitId: commitHash,
-							author: commitsData[i].committer.id,
-							postHtml: pageDownSanitizer.makeHtml(parsedLesson.lesson)
-						};
-						var newLesson = new Lesson(lessonObj);
-						newLesson.save(function(err){
-							if (err){
-								console.error('Error while saving lesson from worker: ' + JSON.stringify(lessonObj) + ':\n' + err);
-								redis.rpush(failedTasksListName, nextTaskRaw);
-							}
-							callback();
-						});
+						if (parsedLesson){
+							var lessonObj = {
+								id: crypto.pseudoRandomBytes(6).toString('base64'),
+								lang: parsedLesson.lang || repoDescription.language,
+								tags: parsedLesson.tags || [parsedLesson.lang],
+								repoId: repoId,
+								commitId: commitHash,
+								author: commitsData[i].committer.id,
+								postHtml: pageDownSanitizer.makeHtml(parsedLesson.lesson) //Fallback value
+							};
+							User.findOne({id: parsedLesson.author}, function(err, authorUser){
+								if (err){
+									console.error('Cannot get lesson\'s author from DB (id: ' + parsedLesson.author + '): ' + err);
+									endCb();
+									return;
+								}
+								if (!authorUser){
+									console.error('Author user missing from DB (id: ' + parsedLesson.author + '): ' + err);
+									endCb();
+									return;
+								}
+								renderMd(parsedLesson.lesson, repoDescription.full_name, authorUser.token, function(err, renderedMd){
+									if (err){
+										console.error('Error while rendering the markdown for repoId ' + parsedLesson.repoId + ':\n' + err);
+										//endCb();
+										//return;
+									} else {
+										parsedLesson.postHtml = renderedMd;
+									}
+									var newLesson = new Lesson(parsedLesson);
+									newLesson.save(function(err){
+										if (err){
+											console.error('Error while saving lesson ' + JSON.stringify(parsedLesson) + ':' + err);
+										}
+										endCb();
+									});
+								});
+							});
+							var newLesson = new Lesson(lessonObj);
+							newLesson.save(function(err){
+								if (err){
+									console.error('Error while saving lesson from worker: ' + JSON.stringify(lessonObj) + ':\n' + err);
+									redis.rpush(failedTasksListName, nextTaskRaw);
+								}
+								endCb();
+							});
+						} else endCb();
+					}
+
+					function endCb(){
+						endCount++;
+						if (endCount == commitsData.length) callback();
 					}
 				});
 			});
@@ -507,6 +545,35 @@ function ghClientForToken(t){
 	var c = new githubApi({version: '3.0.0'});
 	c.authenticate({type: 'oauth', token: t});
 	return c;
+}
+
+function renderMd(md, repoFullName, accessToken, callback){
+	var o = {text: md, mode: (repoFullName ? 'gfm' : 'markdown'), context: repoFullName};
+	var oStr = JSON.stringify(o);
+	var reqOptions = {
+		host: 'api.github.com',
+		method: 'post',
+		headers: config.github.headers,
+		path: '/markdown?access_token=' + accessToken
+	};
+	var mdReq = https.request(reqOptions, function(res){
+		var accumlatedData = '';
+		res.setEncoding('utf8');
+		res.on('error', function(err){
+			callback(err);
+		});
+		res.on('data', function(d){
+			accumlatedData += d;
+		});
+		res.on('end', function(){
+			callback(null, accumlatedData);
+		});
+	});
+	mdReq.on('error', function(err){
+		callback(err);
+	})
+	mdReq.write(oStr);
+	mdReq.end();
 }
 
 function parseLesson(commitMessage){

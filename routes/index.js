@@ -324,6 +324,7 @@ exports.hook = function(req, res){
                         parsedLesson.parentCommitId = commits[i].parents[0].sha;
                     }
                     parsedLesson.author = payload.sender.id;
+                    parsedLesosn.postHtml = pageDownSanitizer.makeHtml(parsedLesson.lesson); //Fallback value
                     User.findOne({id: parsedLesson.author}, function(err, authorUser){
                         if (err){
                             console.error('Cannot get lesson\'s author from db: (authorId: ' + parsedLesson.author + '): ' + err);
@@ -338,10 +339,11 @@ exports.hook = function(req, res){
                         renderMd(parsedLesson.lesson, h.ownerName + '/' + h.name, authorUser.token, function(err, renderedMd){
                             if (err){
                                 console.error('Error while rendering the markdown for repoId ' + parsedLesson.repoId + ':\n' + err);
-                                endCb();
-                                return;
+                                //endCb();
+                                //return;
+                            } else {
+                                parsedLesson.postHtml = renderedMd;
                             }
-                            parsedLesson.postHtml = renderedMd;
                             var newLesson = new Lesson(parsedLesson);
                             newLesson.save(function(err){
                                 if (err) {
