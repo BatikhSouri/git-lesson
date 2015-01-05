@@ -240,6 +240,48 @@ exports.showUserProfile = function(req, res){
     });
 };
 
+exports.searchJson = function(req, res){
+    var query = req.query.q;
+    var altQuery = query.replace(/ +/g, '|');
+    var searchRegex = new RegExp(altQuery, 'gi');
+
+    var tagsResults, titleResults, contentResults;
+
+    Lesson.find({tags: searchRegex}, function(err, lessonsByTags){
+        if (err){
+            console.error('Error while searching lessons by tag. Query: ' + altQuery + ' Error:\n' + err);
+        }
+        tagsResults = lessonsByTags;
+        endCb();
+    });
+
+    Lesson.find({title: searchRegex}, function(err, lessonsByTitle){
+        if (err){
+            console.error('Error while searching lessons by title. Query: ' + altQuery + ' Error:\n' + err);
+        }
+        titleResults = lessonsByTitle;
+        endCb();
+    });
+
+    Lesson.find({postHtml: searchRegex}, function(err, lessonsByContent){
+        if (err){
+            console.error('Error while searching lessons by content. Query: ' + altQuery + ' Error:\n' + err);
+        }
+        contentResults = lessonsByContent;
+        endCb();
+    })
+
+    var endCounter = 0;
+    function endCb(){
+        endCounter++;
+        if (endCounter == 3) mergeAndSortResults();
+    }
+
+    function mergeAndSortResults(){
+
+    }
+}
+
 exports.manual = function(req, res){
     var renderOptions = {title: 'Manual'};
     handleSession(req, res, renderOptions, function(){
