@@ -366,7 +366,7 @@ exports.hook = function(req, res){
                         parsedLesson.parentCommitId = commits[i].parents[0].sha;
                     }
                     parsedLesson.author = payload.sender.id;
-                    parsedLesosn.postHtml = pageDownSanitizer.makeHtml(parsedLesson.lesson); //Fallback value
+                    parsedLesson.postHtml = pageDownSanitizer.makeHtml(parsedLesson.lesson); //Fallback value
                     User.findOne({id: parsedLesson.author}, function(err, authorUser){
                         if (err){
                             console.error('Cannot get lesson\'s author from db: (authorId: ' + parsedLesson.author + '): ' + err);
