@@ -33,7 +33,7 @@ var delayedTasksListName = 'delayed' + tasksListName;
 function start(callback){
 	schedulingInterval = setInterval(pendingTasksSchedulingCycle, config.github.workInterval);
 
-	for (var i = 0; i < config.github.workersPerCpu; i++){
+	for (var i = 0; i < maxConcurrentTasks; i++){
 		processIntervals.push(setInterval(processCycle, config.github.workInterval));
 	}
 
